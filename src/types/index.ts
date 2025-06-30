@@ -4,6 +4,11 @@ export interface CodeQualityRating {
   reason?: string;
   issues?: string[] | ReliabilityIssue[]; // Updated to allow ReliabilityIssue[] type
   improvements?: string[];
+  // Enhanced user-friendly properties
+  percentageScore?: number; // 0-100 numerical score
+  emoji?: string; // Visual indicator (🎉, ⚠️, ❌, etc.)
+  severity?: 'excellent' | 'good' | 'needs-improvement' | 'poor';
+  recommendations?: string[]; // Specific actionable recommendations
 }
 
 export interface CodeViolations {
@@ -15,6 +20,11 @@ export interface CodeViolations {
     category: string;
     violations: { issue: string; severity: 'major' | 'minor'; impact: number }[];
   }[];
+  // Enhanced user-friendly properties
+  total?: number; // Total violation count
+  reportMarkdown?: string; // Formatted markdown report
+  summary?: string; // Human-readable summary
+  priorityIssues?: string[]; // Most critical issues to fix first
 }
 
 // Import new complexity types
@@ -37,6 +47,38 @@ export interface CodeAnalysis {
   
   // New code smells detection
   codeSmells?: CodeSmellsAnalysis;
+  
+  // AI-enhanced analysis results
+  syntaxErrors?: string[]; // AI-detected syntax errors
+  securityIssues?: string[]; // AI-detected security issues  
+  performanceIssues?: string[]; // AI-detected performance issues
+  
+  // Enhanced user-friendly properties
+  analysisMetadata?: {
+    analysisDate: Date;
+    language: string;
+    codeSize: 'small' | 'medium' | 'large'; // Based on LOC
+    analysisTime?: number; // Time taken in milliseconds
+    aiAnalysisUsed: boolean; // Whether AI analysis was successfully used
+    version: string; // Analysis tool version
+  };
+  
+  summary?: {
+    overallScore: number; // 0-100 numerical score
+    strengths: string[]; // What the code does well
+    weaknesses: string[]; // Areas that need improvement
+    quickFixes: string[]; // Easy fixes that can be done immediately
+    longTermGoals: string[]; // Bigger refactoring suggestions
+    priorityLevel: 'low' | 'medium' | 'high' | 'critical'; // Overall priority for fixes
+  };
+  
+  insights?: {
+    codeComplexityLevel: 'simple' | 'moderate' | 'complex' | 'very-complex';
+    maintenanceEffort: 'low' | 'medium' | 'high';
+    testCoverage: 'poor' | 'fair' | 'good' | 'excellent';
+    readabilityScore: number; // 0-100
+    technicalDebt: 'low' | 'medium' | 'high' | 'very-high';
+  };
 }
 
 export interface ProgrammingLanguage {
@@ -54,6 +96,13 @@ export interface TestCase {
   passed?: boolean;
   actualOutput?: string;
   executionDetails?: string;
+  category?: string; // AI-generated test category (normal, edge, error, boundary, performance, security)
+  // Enhanced user-friendly properties
+  priority?: 'high' | 'medium' | 'low'; // Test priority
+  difficulty?: 'easy' | 'medium' | 'hard'; // Implementation difficulty
+  automated?: boolean; // Whether this test can be automated
+  estimatedTime?: string; // Estimated time to implement
+  tags?: string[]; // Test tags for categorization
 }
 
 // Add the missing types that are imported in codeMetrics.ts

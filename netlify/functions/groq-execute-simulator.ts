@@ -2,13 +2,30 @@ import { Handler } from "@netlify/functions";
 import Groq from "groq-sdk";
 
 const client = new Groq({
-  apiKey: process.env.VITE_GROQ_API_KEY!,
+  apiKey: process.env.GROQ_API_KEY!,
 });
 
 const handler: Handler = async (event) => {
+  // Handle CORS
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: "",
+    };
+  }
+
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
+      headers: corsHeaders,
       body: JSON.stringify({ message: "Method Not Allowed" }),
     };
   }
@@ -16,6 +33,14 @@ const handler: Handler = async (event) => {
   try {
     const body = JSON.parse(event.body || "{}");
     const { code, input, language } = body;
+
+    if (!code || !language) {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ message: "Code and language are required" }),
+      };
+    }
 
     const systemPrompt = `
 You are a strict code simulator.
@@ -44,12 +69,14 @@ Rules:
 
     return {
       statusCode: 200,
+      headers: corsHeaders,
       body: JSON.stringify({ output: output || "No output returned." }),
     };
   } catch (error) {
     console.error("Execution simulation failed:", error);
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ message: "Execution failed." }),
     };
   }

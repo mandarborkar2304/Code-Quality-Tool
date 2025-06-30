@@ -9,7 +9,6 @@ import {
 import { getRatingFromScore } from "./quality";
 import { 
   analyzeCodeForIssues, 
-  generateTestCasesFromCode, 
   categorizeViolations
 } from "./codeAnalysis";
 import { 
@@ -18,7 +17,10 @@ import {
   detectCodeSmells 
 } from "./complexityAnalysis";
 
+// DEPRECATED: mockAnalysis is now disabled and should not be used anywhere in the project.
+// All analysis should use the new analyzeCode function from codeAnalysis.ts and quality modules.
 export const generateMockAnalysis = (code: string, language: string): CodeAnalysis => {
+  throw new Error("mockAnalysis is deprecated. Use analyzeCode from codeAnalysis.ts instead.");
   // Calculate metrics using enhanced SonarQube-aligned algorithms
   const cyclomaticComplexityScore = calculateCyclomaticComplexity(code, language);
   const maintainabilityScore = calculateMaintainability(code, language);
@@ -61,9 +63,6 @@ export const generateMockAnalysis = (code: string, language: string): CodeAnalys
   // Add code smells detection
   const codeSmells = detectCodeSmells(code, language);
   
-  // Generate test cases with SonarQube-style methodology
-  const testCases = generateTestCasesFromCode(code, language);
-  
   // Compute overall code quality score with weighted reliability (SonarQube style)
   const overallGrade = computeOverallGrade(
     cyclomaticComplexityRating.score, 
@@ -87,12 +86,12 @@ export const generateMockAnalysis = (code: string, language: string): CodeAnalys
     maintainability: maintainabilityRating,
     reliability: reliabilityRating,
     violations,
-    testCases,
     aiSuggestions,
     metrics,
     overallGrade,
     complexityAnalysis,
-    codeSmells
+    codeSmells,
+    testCases: [] // test case generation removed, return empty array
   };
 };
 

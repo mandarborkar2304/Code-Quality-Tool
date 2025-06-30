@@ -64,13 +64,13 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				code: {
-					DEFAULT: '#1A1F2C',
-					foreground: '#E6E6E6',
-					accent: '#8B5CF6',
-					green: '#4EBF7B',
-					red: '#F25858',
-					yellow: '#FFCB6B',
-					blue: '#1EAEDB',
+					DEFAULT: 'hsl(var(--code))',
+					foreground: 'hsl(var(--code-foreground))',
+					red: 'hsl(var(--code-red))',
+					yellow: 'hsl(var(--code-yellow))',
+					green: 'hsl(var(--code-green))',
+					blue: 'hsl(var(--code-blue))',
+					purple: 'hsl(var(--code-purple))',
 				}
 			},
 			borderRadius: {

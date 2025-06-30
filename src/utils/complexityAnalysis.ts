@@ -1,24 +1,136 @@
 
 import { ComplexityAnalysis, ComplexityGrade, CodeSmell, CodeSmellsAnalysis } from '@/types/complexityTypes';
 
-// Time Complexity Analysis
+// Helper function for comprehensive loop analysis
+function analyzeLoopComplexity(code: string, language: string): {
+  complexity: ComplexityGrade;
+  factors: string[];
+  confidence: 'high' | 'medium' | 'low';
+} {
+  const result = { complexity: 'O(1)' as ComplexityGrade, factors: [] as string[], confidence: 'high' as const };
+  
+  // Check for specific algorithmic patterns
+  if (hasBinarySearch(code, language)) {
+    result.complexity = 'O(log n)';
+    result.factors.push('Binary search pattern detected');
+    result.confidence = 'high';
+  }
+  
+  if (hasMergeSort(code, language)) {
+    result.complexity = 'O(n log n)';
+    result.factors.push('Merge sort or divide-and-conquer pattern detected');
+    result.confidence = 'medium';
+  }
+  
+  if (hasMatrixOperations(code, language)) {
+    result.complexity = 'O(n³)';
+    result.factors.push('Matrix multiplication or 3D operations detected');
+    result.confidence = 'medium';
+  }
+  
+  return result;
+}
+
+// Extract loop variables for better analysis
+function extractLoopVariables(code: string, language: string): string[] {
+  const variables: string[] = [];
+  const lines = code.split('\n');
+  
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    
+    // Language-specific loop variable extraction
+    if (language === 'javascript' || language === 'typescript') {
+      const forMatch = trimmed.match(/for\s*\(\s*(?:let|var|const)?\s*(\w+)/);
+      const forOfMatch = trimmed.match(/for\s*\(\s*(?:let|var|const)?\s*(\w+)\s+of/);
+      const forInMatch = trimmed.match(/for\s*\(\s*(?:let|var|const)?\s*(\w+)\s+in/);
+      
+      if (forMatch) variables.push(forMatch[1]);
+      if (forOfMatch) variables.push(forOfMatch[1]);
+      if (forInMatch) variables.push(forInMatch[1]);
+    } else if (language === 'python') {
+      const forMatch = trimmed.match(/for\s+(\w+)\s+in/);
+      if (forMatch) variables.push(forMatch[1]);
+    } else if (language === 'java' || language === 'cpp' || language === 'csharp') {
+      const forMatch = trimmed.match(/for\s*\(\s*\w+\s+(\w+)/);
+      if (forMatch) variables.push(forMatch[1]);
+    }
+  });
+  
+  return [...new Set(variables)]; // Remove duplicates
+}
+
+// Enhanced algorithmic pattern detection
+function hasBinarySearch(code: string, language: string): boolean {
+  const patterns = [
+    /while.*<.*middle|mid/i,
+    /left.*right.*middle/i,
+    /start.*end.*mid/i,
+    /binary.*search/i,
+    /log.*search/i
+  ];
+  
+  return patterns.some(pattern => pattern.test(code));
+}
+
+function hasMergeSort(code: string, language: string): boolean {
+  const patterns = [
+    /merge.*sort/i,
+    /divide.*conquer/i,
+    /merge.*left.*right/i,
+    /split.*merge/i
+  ];
+  
+  return patterns.some(pattern => pattern.test(code));
+}
+
+function hasMatrixOperations(code: string, language: string): boolean {
+  const patterns = [
+    /matrix.*multiply/i,
+    /\[.*\]\[.*\]\[.*\]/,
+    /3.*dimensional/i,
+    /cube.*operation/i
+  ];
+  
+  return patterns.some(pattern => pattern.test(code));
+}
+
+// Enhanced Time Complexity Analysis
 export const analyzeTimeComplexity = (code: string, language: string): ComplexityAnalysis['timeComplexity'] => {
   const lines = code.split('\n');
   let maxComplexity: ComplexityGrade = 'O(1)';
   let confidence: 'high' | 'medium' | 'low' = 'high';
   const factors: string[] = [];
   
-  // Analyze nested loops
+  // Comprehensive loop analysis
+  const loopAnalysis = analyzeLoopComplexity(code, language);
+  if (loopAnalysis.complexity !== 'O(1)') {
+    maxComplexity = loopAnalysis.complexity;
+    factors.push(...loopAnalysis.factors);
+    confidence = loopAnalysis.confidence;
+  }
+  
+  // Enhanced nested loop analysis with variable tracking
   const nestedLoopDepth = calculateNestedLoopDepth(code);
-  if (nestedLoopDepth >= 3) {
+  const loopVariables = extractLoopVariables(code, language);
+  
+  if (nestedLoopDepth >= 4) {
+    maxComplexity = 'O(n⁴)';
+    factors.push(`Quartic complexity detected (${nestedLoopDepth}-level nested loops)`);
+    confidence = 'high';
+  } else if (nestedLoopDepth >= 3) {
     maxComplexity = 'O(n³)';
-    factors.push(`Triple nested loops detected (depth: ${nestedLoopDepth})`);
+    factors.push(`Cubic complexity from ${nestedLoopDepth}-level nested loops`);
+    factors.push(`Loop variables: ${loopVariables.join(', ')}`);
   } else if (nestedLoopDepth === 2) {
     maxComplexity = 'O(n²)';
-    factors.push('Nested loops detected (quadratic complexity)');
+    factors.push('Quadratic complexity from nested loops');
+    if (loopVariables.length > 0) {
+      factors.push(`Independent variables: ${loopVariables.join(', ')}`);
+    }
   } else if (nestedLoopDepth === 1) {
     maxComplexity = 'O(n)';
-    factors.push('Single loops detected (linear complexity)');
+    factors.push('Linear complexity from single loops');
   }
   
   // Check for recursive patterns
@@ -206,16 +318,7 @@ const hasSortingOperations = (code: string, language: string): boolean => {
   return sortPatterns.some(pattern => pattern.test(code));
 };
 
-const hasBinarySearch = (code: string): boolean => {
-  const binarySearchPatterns = [
-    /binarySearch/i,
-    /binary.*search/i,
-    /mid\s*=.*\/\s*2/,
-    /\(.*\+.*\)\s*\/\s*2/
-  ];
-  
-  return binarySearchPatterns.some(pattern => pattern.test(code));
-};
+
 
 const hasDivideConquer = (code: string): boolean => {
   return /divide.*conquer|conquer.*divide/i.test(code) ||

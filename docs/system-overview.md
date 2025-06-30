@@ -52,11 +52,13 @@ Source Code Input → Parsing → Analysis → Scoring → Grading → Report Ou
 
 ### Key Dependencies
 - **@radix-ui/react-***: Accessible UI primitives
-- **lucide-react**: Icon library
+- **lucide-react**: Icon library with 1000+ icons
 - **recharts**: Charting and data visualization
 - **react-hook-form**: Form state management
 - **zod**: Schema validation
 - **class-variance-authority**: Conditional CSS classes
+- **groq-sdk**: AI-powered analysis integration
+- **tailwindcss-scrollbar**: Custom scrollbar styling
 
 ### Development Tools
 - **ESLint**: Code linting and style enforcement
@@ -115,18 +117,21 @@ Source Code Input → Parsing → Analysis → Scoring → Grading → Report Ou
 
 ### What the System Does
 - Static code analysis without execution
-- Pattern-based bug detection
+- Pattern-based bug detection and security scanning
 - Structural quality assessment
 - Educational feedback generation
-- Multi-language syntax analysis
+- Multi-language syntax analysis with GROQ AI integration
+- Performance bottleneck detection
+- Production-level issue identification
+- Multi-file tab-based editing interface
+- Enhanced scrolling and responsive UI design
 
 ### What the System Does NOT Do
 - Dynamic runtime analysis
-- Security vulnerability scanning
-- Performance profiling
-- Automated code fixes
+- Automated code fixes (provides suggestions only)
 - Integration with version control systems
-- Multi-file dependency analysis
+- Multi-file dependency analysis (files are analyzed independently)
+- Database storage of analysis results
 
 ## 📈 Performance Characteristics
 

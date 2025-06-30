@@ -1,6 +1,10 @@
 import { CodeViolations } from '@/types';
 import { TestCase } from '@/types';
 import { ReliabilityIssue } from '@/types';
+import { analyzeCodeViolations, formatViolationsReport } from '@/utils/quality/violationsFramework';
+import { getGroqResponse, getTestCaseRecommendations, getComprehensiveCodeAnalysis, AICodeAnalysisResult } from './GroqClient';
+import { calculateCyclomaticComplexity, calculateMaintainability } from './codeMetrics';
+import { analyzeSyntaxErrors, formatSyntaxErrors, getQuickFixes, SyntaxAnalysisResult } from './syntaxAnalyzer';
 
 // Quality Rules Configuration
 export const rules = {
@@ -33,6 +37,38 @@ export const rules = {
       "\\.then\\s*\\("
     ]
   },
+  customSmells: [
+    {
+      id: "magic-numbers",
+      pattern: "\\b(?<!\\.)\\d{2,}\\b(?!\\.)",
+      message: "Magic number detected - consider using named constants",
+      severity: "minor" as 'major' | 'minor'
+    },
+    {
+      id: "no-console-log",
+      pattern: "console\\.log\\s*\\(",
+      message: "Console.log found - remove debug statements from production code",
+      severity: "minor" as 'major' | 'minor'
+    },
+    {
+      id: "single-letter-var",
+      pattern: "\\b(?:let|const|var)\\s+[a-zA-Z]\\b",
+      message: "Single letter variables reduce code readability",
+      severity: "minor" as 'major' | 'minor'
+    },
+    {
+      id: "no-todo-fixme",
+      pattern: "(?://|/\\*|#).*(?:TODO|FIXME|XXX)",
+      message: "TODO/FIXME comments found - resolve before production",
+      severity: "minor" as 'major' | 'minor'
+    },
+    {
+      id: "redundant-computation",
+      pattern: "(?:Math\\.\\w+\\([^)]+\\)|\\w+\\s*\\*\\s*\\w+|\\w+\\s*\\+\\s*\\w+).*(?:Math\\.\\w+\\([^)]+\\)|\\w+\\s*\\*\\s*\\w+|\\w+\\s*\\+\\s*\\w+)",
+      message: "Potential redundant computation detected",
+      severity: "minor" as 'major' | 'minor'
+    }
+  ],
   unhandledExceptions: {
     enabled: true,
     riskOperations: [
@@ -103,42 +139,26 @@ export const rules = {
         languages: ["java"]
       }
     ]
-  },
-  customSmells: [
-    {
-      id: "no-console-log",
-      pattern: "console\\.log",
-      message: "Avoid console.log in production code",
-      severity: "minor"
-    },
-    {
-      id: "no-todo-fixme",
-      pattern: "\\/\\/\\s*(TODO|FIXME)",
-      message: "Remove TODO/FIXME comments before commit",
-      severity: "minor"
-    },
-    {
-      id: "magic-numbers",
-      pattern: "(?<![a-zA-Z0-9_])([3-9]|[1-9][0-9]+)(?![a-zA-Z0-9_])",
-      message: "Replace magic numbers with constants",
-      severity: "minor"
-    },
-    {
-      id: "single-letter-var",
-      pattern: "\\b(int|String|boolean|double|char|long)\\s+([a-zA-Z])\\b",
-      message: "Use descriptive variable names instead of single letters",
-      severity: "minor"
-    },
-    {
-      id: "redundant-computation",
-      pattern: "for\\s*\\(.+?\\)\\s*{[^}]*for\\s*\\(.+?\\)",
-      message: "Possible redundant computation in nested loops",
-      severity: "major"
-    }
-  ] as Array<{ id: string; pattern: string; message: string; severity?: 'major' | 'minor' }>
+  }
 };
 
-// Helper functions needed for code analysis
+// Primary AI-driven analysis (recommended)
+export const analyzeCode = async (code: string, language: string = 'javascript') => {
+  // Use the deep analysis with AI integration directly
+  return await analyzeCodeDeep(code, language);
+};
+
+// Legacy static analysis interface
+export const analyzeCodeStatic = (code: string, language: string = 'javascript') => {
+  // Delegate all static code violation analysis
+  const violationResult = analyzeCodeViolations(code, language);
+  const report = formatViolationsReport(violationResult);
+  return {
+    violationResult,
+    report,
+  };
+};
+
 // Extract variables that are bounded in loops
 const extractBoundedVariables = (lines: string[], language: string): string[] => {
   const boundedVars: string[] = [];
@@ -541,10 +561,10 @@ export const analyzeCodeForIssues = (code: string, language: string = 'javascrip
   }
 
   // Find initialization and bounds context to prevent false positives
-  const boundedLoopVars = extractBoundedVariables(lines, language);
-  const nullProtectedVars = extractNullCheckedVariables(lines, language);
-  const zeroCheckedVars = extractZeroCheckedVariables(lines, language);
-  const mainFunctionInputs = extractMainFunctionInputs(lines, language);
+  const boundedLoopVars = new Set(extractBoundedVariables(lines, language));
+  const nullProtectedVars = new Set(extractNullCheckedVariables(lines, language));
+  const zeroCheckedVars = new Set(extractZeroCheckedVariables(lines, language));
+  const mainFunctionInputs = new Set(extractMainFunctionInputs(lines, language));
   
   // Find variables protected by optional chaining or nullish coalescing
   const safeNullHandling = lines.some(line => line.includes('?.') || line.includes('??'));
@@ -743,7 +763,7 @@ export const analyzeCodeForIssues = (code: string, language: string = 'javascrip
 
       // Skip if already reported or is an exempt loop variable
       if (!reportedShortVars.has(varName) && !exemptVars.has(varName)) {
-        const isLoopVar = (line.includes('for') || boundedLoopVars.includes(varName));
+        const isLoopVar = (line.includes('for') || boundedLoopVars.has(varName));
 
         if (!isLoopVar) {
           const issue = `Single-letter variable name "${varName}" detected - use descriptive naming for better readability`;
@@ -1234,303 +1254,648 @@ export const categorizeViolations = (
   };
 };
 
-// Context-aware decision on whether to flag a risky operation - updated with better context
-function shouldFlagRiskyOperation(
-  line: string, 
-  operationType: string, 
-  boundedVars: string[], 
-  nullCheckedVars: string[], 
-  mainInputs: string[],
-  zeroCheckedVars: string[] = [],
-  hasSafeNullHandling: boolean = false
-): boolean {
-  // Skip flagging if optional chaining is used anywhere in this line
-  if (line.includes('?.') || line.includes('?.(') || line.includes('??')) {
-    return false; // Optional chaining already protects access
+// --- Code Smells Analysis Transformation ---
+function getSmellSuggestion(type: string): string {
+  switch (type) {
+    case 'deep-nesting':
+      return 'Refactor deeply nested code into smaller functions or use guard clauses.';
+    case 'long-method':
+      return 'Split long methods into smaller, focused functions.';
+    case 'duplicate-code':
+      return 'Extract duplicate code into reusable functions or modules.';
+    case 'magic-numbers':
+      return 'Replace magic numbers with named constants.';
+    case 'unused-variables':
+      return 'Remove unused variables to clean up the code.';
+    case 'large-class':
+      return 'Break large classes into smaller, single-responsibility classes.';
+    case 'dead-code':
+      return 'Remove dead code to improve maintainability.';
+    default:
+      return 'Review and refactor as needed.';
   }
-
-  // For array access in bounded loops, avoid flagging
-  if (operationType === 'array-unsafe' || operationType === 'java-array-index') {
-    // Extract the variable used for array indexing
-    const match = line.match(/\[(\w+)\]/);
-    if (match && match[1] && boundedVars.includes(match[1])) {
-      return false; // Don't flag if index is a bounded loop variable
-    }
-    
-    // Check if this is a literal index that is likely safe
-    const literalMatch = line.match(/\[(\d+)\]/);
-    if (literalMatch && parseInt(literalMatch[1]) < 1000) { // Increased threshold for safer analysis
-      // Small literal indices are usually safe
-      return false;
-    }
-    
-    // Check if there's a .length - 1 pattern
-    if (line.includes('.length - 1') || line.includes('.length-1')) {
-      return false; // Common pattern for accessing last element
-    }
-    
-    // Enhanced bounds check detection
-    const hasLengthCheck = line.includes('.length') && 
-                          (line.includes('<') || line.includes('<=') || line.includes('>') || line.includes('>='));
-    if (hasLengthCheck) {
-      return false;
-    }
-    
-    // Skip declaring array literals
-    if (line.match(/\[\s*(['"][^'"]*['"]|\d+\s*)(,\s*(['"][^'"]*['"]|\d+))*\s*\]/)) {
-      return false; // Array literal declaration
-    }
-  }
-  
-  // For null pointer access, don't flag if null-checked
-  if (operationType === 'null-unsafe' || operationType === 'java-null-pointer') {
-    // Skip if global safe null handling is used in file
-    if (hasSafeNullHandling) {
-      return false;
-    }
-    
-    // Don't flag line 1 or import statements
-    if (line.trim().startsWith('import') || line.trim().match(/^(\/\/|\/\*|\*)/)) {
-      return false;
-    }
-    
-    // Extract the object being accessed
-    const match = line.match(/(\w+)\.\w+\(/);
-    if (!match) {
-      // No method call access - less risky
-      return false;
-    }
-    
-    if (match && match[1] && 
-      (nullCheckedVars.includes(match[1]) || mainInputs.includes(match[1]))) {
-      return false; // Don't flag if object has null check or is a main input
-    }
-    
-    // Skip standard objects that are typically not null
-    if (match && ['Math', 'Object', 'Array', 'String', 'Number', 'console', 'JSON'].includes(match[1])) {
-      return false;
-    }
-    
-    // Skip if the code contains defensive programming with ||
-    if (line.includes('||') && line.includes('{')) {
-      return false; // Likely a guard clause
-    }
-    
-    // Only flag if there's actual dereferencing without checks
-    const hasDereferencing = line.match(/(\w+)\.([\w.]+)/) && 
-                            !line.includes('?') && 
-                            !line.includes('!==') && 
-                            !line.includes('!=') && 
-                            !line.includes('===') && 
-                            !line.includes('==');
-                            
-    return Boolean(hasDereferencing);
-  }
-  
-  // For division, look for explicit non-zero checks
-  if (operationType === 'java-arithmetic' && line.includes('/')) {
-    // Skip division by constants which are safe
-    if (line.match(/\/\s*\d+([^.]|$)/)) {
-      // But flag division by zero
-      const divisorMatch = line.match(/\/\s*(\d+)/);
-      if (divisorMatch && divisorMatch[1] === '0') {
-        return true; // Actual division by zero found
-      }
-      return false; // Division by non-zero integer constant is safe
-    }
-    
-    // Skip division in typical counter/average calculations
-    if (line.match(/\/\s*(length|size)\(\)/i)) {
-      return false; // Division by array/collection size
-    }
-    
-    // Extract the divisor variable
-    const divMatch = line.match(/\/\s*(\w+)/);
-    if (divMatch && divMatch[1] && zeroCheckedVars.includes(divMatch[1])) {
-      return false; // Don't flag if divisor has zero check
-    }
-    
-    // Check for denominator != 0 pattern in the same line
-    if (line.includes('!= 0') || line.includes('!== 0') || line.includes('> 0')) {
-      return false;
-    }
-    
-    // Only flag if there's a division operation without obvious validation
-    return Boolean(divMatch);
-  }
-  
-  // For input validation, only flag if it could lead to runtime exceptions
-  if (operationType.includes('input') || operationType.includes('validation')) {
-    // Skip comment lines
-    if (line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')) {
-      return false;
-    }
-    
-    // Only flag if there's actual input processing with potential exceptions
-    const hasRiskyInput = (line.includes('input') || line.includes('param')) && 
-                         (line.includes('parse') || line.includes('JSON') || line.includes('['));
-                         
-    return hasRiskyInput;
-  }
-  
-  return true; // Flag by default for other issue types
 }
-
-// Generate test cases from code
-export const generateTestCasesFromCode = (code: string, language: string): TestCase[] => {
-  const testCases: TestCase[] = [];
-  
-  if (!code || code.length < 20) {
-    return [];
+function getSmellImpact(type: string): string {
+  switch (type) {
+    case 'deep-nesting':
+      return 'Reduces readability and increases risk of bugs.';
+    case 'long-method':
+      return 'Harder to test and maintain.';
+    case 'duplicate-code':
+      return 'Increases maintenance cost and risk of inconsistencies.';
+    case 'magic-numbers':
+      return 'Makes code harder to understand and update.';
+    case 'unused-variables':
+      return 'Wastes memory and confuses readers.';
+    case 'large-class':
+      return 'Violates single responsibility, harder to maintain.';
+    case 'dead-code':
+      return 'Clutters codebase and may cause confusion.';
+    default:
+      return 'May impact code quality.';
   }
+}
+// Move codeSmellsAnalysis inside the function where codeSmells is defined
 
+// AI-driven comprehensive code analysis (New approach)
+export const analyzeCodeWithAI = async (code: string, language: string = 'javascript') => {
+  const startTime = Date.now();
   const lines = code.split('\n');
   
-  if (language === 'javascript' || language === 'typescript' || language === 'nodejs') {
-    // ... keep existing code (JavaScript/TypeScript test case generation)
-    const functionMatches = code.match(/function\s+([a-zA-Z_$][0-9a-zA-Z_$]*)\s*\(([^)]*)\)/g) || [];
-    const arrowFunctionMatches = code.match(/const\s+([a-zA-Z_$][0-9a-zA-Z_$]*)\s*=\s*(\([^)]*\)|[a-zA-Z_$][0-9a-zA-Z_$]*)\s*=>/g) || [];
+  try {
+    console.log('🚀 Starting AI-driven code analysis...');
     
-    functionMatches.forEach((match) => {
-      const functionName = match.replace(/function\s+/, '').split('(')[0];
-      testCases.push({
-        name: `Test ${functionName}`,
-        description: `Test case for ${functionName} function`,
-        input: `${functionName}(value)`,
-        expectedOutput: "Expected result",
-        passed: Math.random() > 0.3,
-        actualOutput: "Actual result",
-      });
-    });
+    // 1. Get comprehensive AI analysis
+    const aiAnalysis: AICodeAnalysisResult = await getComprehensiveCodeAnalysis(code, language);
     
-    if (testCases.length === 0 && code.length > 100) {
-      testCases.push({
-        name: "General test",
-        description: "General code execution test",
-        input: "Input parameters",
-        expectedOutput: "Expected output",
-        passed: true,
-        actualOutput: "Output matches expected result",
-      });
-    }
-  } else if (language === 'python' || language === 'python3') {
-    // ... keep existing code (Python test case generation)
-    const functionMatches = code.match(/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\):/g) || [];
-    functionMatches.forEach((match) => {
-      const functionName = match.replace(/def\s+/, '').split('(')[0];
-      testCases.push({
-        name: `Test ${functionName}`,
-        description: `Test case for ${functionName} function`,
-        input: `${functionName}(args)`,
-        expectedOutput: "Expected result",
-        passed: Math.random() > 0.3,
-        actualOutput: "Actual result",
-      });
-    });
+    // 2. Generate AI-powered test cases
+    const testCasesResponse = await getTestCaseRecommendations(code, language);
+    const testCases = parseGroqTestCasesResponse(testCasesResponse);
     
-    if (testCases.length === 0 && code.length > 100) {
-      testCases.push({
-        name: "General test",
-        description: "General code execution test",
-        input: "Input parameters",
-        expectedOutput: "Expected output",
-        passed: true,
-        actualOutput: "Output matches expected result",
-      });
-    }
-  } else if (language === 'java') {
-    // Look for competitive programming patterns in Java
-    const hasMainMethod = code.match(/public\s+static\s+void\s+main\s*\(/);
-    const hasStdinInput = code.match(/Scanner|BufferedReader|System\.in/);
+    // 3. Apply our grading rules to AI results
+    const grades = mapAIAnalysisToGrades(aiAnalysis);
     
-    if (hasMainMethod && hasStdinInput) {
-      // Identify the input/output pattern
-      testCases.push({
-        name: "Sample Test Case",
-        description: "Competitive programming sample input/output test",
-        input: "3\n1 2 3",
-        expectedOutput: "6",
-        passed: true,
-        actualOutput: "6",
-        executionDetails: "Execution completed successfully"
-      });
+    // 4. Calculate basic static metrics (lightweight)
+    const basicMetrics = {
+      linesOfCode: lines.length,
+      codeLines: lines.filter(l => l.trim().length > 0).length,
+      commentLines: lines.filter(l => l.trim().startsWith('//') || l.trim().startsWith('/*') || l.trim().startsWith('*')).length,
+      functionCount: (code.match(/function\s+\w+|def\s+\w+|public\s+\w+\s+\w+\s*\(/g) || []).length,
+    };
+    basicMetrics.commentLines = basicMetrics.codeLines > 0 ? (basicMetrics.commentLines / basicMetrics.codeLines) * 100 : 0;
+    
+    // 5. Build enhanced result with AI insights
+    const analysisTime = Date.now() - startTime;
+    
+    return {
+      originalCode: code,
       
-      testCases.push({
-        name: "Edge Case Test",
-        description: "Testing with edge case values",
-        input: "1\n0",
-        expectedOutput: "0",
-        passed: true,
-        actualOutput: "0",
-        executionDetails: "Execution completed successfully"
-      });
+      // Grades based on AI analysis
+      cyclomaticComplexity: {
+        score: grades.complexity,
+        description: `Cyclomatic Complexity: ${aiAnalysis.complexity.cyclomaticComplexity}`,
+        percentageScore: Math.max(0, 100 - (aiAnalysis.complexity.cyclomaticComplexity * 5)),
+        emoji: grades.complexity === 'A' ? '🎉' : grades.complexity === 'B' ? '👍' : grades.complexity === 'C' ? '⚠️' : '❌',
+        severity: grades.complexity === 'A' ? 'excellent' : grades.complexity === 'B' ? 'good' : grades.complexity === 'C' ? 'needs-improvement' : 'poor',
+        recommendations: aiAnalysis.recommendations.immediate.filter(r => r.toLowerCase().includes('complexity'))
+      },
       
-      testCases.push({
-        name: "Stress Test",
-        description: "Testing with larger input sizes",
-        input: "1000\n" + Array.from({length: 1000}, (_, i) => i + 1).join(" "),
-        expectedOutput: "500500",
-        passed: false,
-        actualOutput: "Time limit exceeded",
-        executionDetails: "Execution timed out after 1000ms"
-      });
-    } else {
-      // Regular Java method testing
-      const methodMatches = code.match(/(?:public|private|protected)(?:\s+static)?\s+\w+\s+(\w+)\s*\(([^)]*)\)/g) || [];
+      maintainability: {
+        score: grades.maintainability,
+        description: `Maintainability Index: ${aiAnalysis.complexity.maintainabilityIndex}`,
+        percentageScore: aiAnalysis.complexity.maintainabilityIndex,
+        emoji: grades.maintainability === 'A' ? '🎉' : grades.maintainability === 'B' ? '👍' : grades.maintainability === 'C' ? '⚠️' : '❌',
+        severity: grades.maintainability === 'A' ? 'excellent' : grades.maintainability === 'B' ? 'good' : grades.maintainability === 'C' ? 'needs-improvement' : 'poor',
+        recommendations: aiAnalysis.recommendations.shortTerm.filter(r => r.toLowerCase().includes('maintain'))
+      },
       
-      methodMatches.forEach((match) => {
-        const methodNameMatch = match.match(/(?:public|private|protected)(?:\s+static)?\s+\w+\s+(\w+)/);
-        if (methodNameMatch && methodNameMatch[1]) {
-          const methodName = methodNameMatch[1];
-          testCases.push({
-            name: `Test ${methodName}`,
-            description: `JUnit test case for ${methodName} method`,
-            input: `${methodName}(params)`,
-            expectedOutput: "Expected result",
-            passed: Math.random() > 0.3,
-            actualOutput: "Actual result",
-            executionDetails: "Test execution details"
-          });
+      reliability: {
+        score: grades.reliability,
+        description: `Reliability Score: ${aiAnalysis.quality.overallScore}`,
+        percentageScore: aiAnalysis.quality.overallScore,
+        emoji: grades.reliability === 'A' ? '🎉' : grades.reliability === 'B' ? '👍' : grades.reliability === 'C' ? '⚠️' : '❌',
+        severity: grades.reliability === 'A' ? 'excellent' : grades.reliability === 'B' ? 'good' : grades.reliability === 'C' ? 'needs-improvement' : 'poor',
+        recommendations: [...aiAnalysis.recommendations.immediate, ...aiAnalysis.recommendations.shortTerm].slice(0, 3)
+      },
+      
+      // AI-detected violations
+      violations: {
+        major: aiAnalysis.quality.violations.filter(v => v.severity === 'major').length,
+        minor: aiAnalysis.quality.violations.filter(v => v.severity === 'minor').length,
+        details: aiAnalysis.quality.violations.map(v => v.description),
+        lineReferences: aiAnalysis.quality.violations.map(v => ({
+          line: v.line || 1,
+          issue: v.description,
+          severity: v.severity
+        })),
+        total: aiAnalysis.quality.violations.length,
+        summary: `AI detected ${aiAnalysis.quality.violations.filter(v => v.severity === 'major').length} major and ${aiAnalysis.quality.violations.filter(v => v.severity === 'minor').length} minor violations`,
+        priorityIssues: aiAnalysis.security.slice(0, 3).map(s => s.issue)
+      },
+      
+      // AI suggestions (structured)
+      aiSuggestions: formatAISuggestions(aiAnalysis),
+      
+      correctedCode: '', // Future: AI could generate corrected code
+      overallGrade: grades.overall,
+      metrics: basicMetrics,
+      testCases,
+      
+      // Enhanced complexity analysis from AI
+      complexityAnalysis: {
+        cyclomaticComplexity: aiAnalysis.complexity.cyclomaticComplexity,
+        maxNestingDepth: 0, // AI doesn't measure this specifically
+        functionCount: basicMetrics.functionCount,
+        averageFunctionLength: Math.round(basicMetrics.codeLines / Math.max(basicMetrics.functionCount, 1)),
+        timeComplexity: {
+          notation: aiAnalysis.complexity.timeComplexity,
+          confidence: 'high',
+          description: `AI-analyzed time complexity: ${aiAnalysis.complexity.timeComplexity}`,
+          factors: aiAnalysis.performance.map(p => p.description)
+        },
+        spaceComplexity: {
+          notation: aiAnalysis.complexity.spaceComplexity,
+          confidence: 'high', 
+          description: `AI-analyzed space complexity: ${aiAnalysis.complexity.spaceComplexity}`,
+          factors: []
         }
-      });
+      },
       
-      // Add at least one test case for Java code
-      if (testCases.length === 0 && code.length > 100) {
-        testCases.push({
-          name: "General Java Test",
-          description: "JUnit test for overall functionality",
-          input: "Test parameters",
-          expectedOutput: "Expected output according to specifications",
-          passed: true,
-          actualOutput: "Matches expected output",
-        });
+      // AI-detected code smells
+      codeSmells: {
+        smells: aiAnalysis.quality.codeSmells.map(smell => ({
+          type: smell.type,
+          severity: smell.severity === 'critical' || smell.severity === 'high' ? 'major' : 'minor',
+          description: smell.description,
+          line: smell.line || 1,
+          suggestion: smell.suggestion,
+          impact: `${smell.severity} impact`
+        })),
+        totalCount: aiAnalysis.quality.codeSmells.length,
+        majorCount: aiAnalysis.quality.codeSmells.filter(s => s.severity === 'critical' || s.severity === 'high').length,
+        minorCount: aiAnalysis.quality.codeSmells.filter(s => s.severity === 'low' || s.severity === 'medium').length,
+        categories: groupByCategory(aiAnalysis.quality.codeSmells)
+      },
+      
+      // AI-enhanced results
+      syntaxErrors: [], // AI doesn't typically detect syntax errors in valid code
+      securityIssues: aiAnalysis.security.map(s => `${s.issue}: ${s.description}`),
+      performanceIssues: aiAnalysis.performance.map(p => `${p.issue}: ${p.description}`),
+      
+      // Enhanced metadata
+      analysisMetadata: {
+        analysisDate: new Date(),
+        language,
+        codeSize: lines.length < 50 ? 'small' : lines.length < 200 ? 'medium' : 'large',
+        analysisTime,
+        aiAnalysisUsed: true,
+        version: '2.1.0-AI'
+      },
+      
+      // AI-generated summary
+      summary: {
+        overallScore: aiAnalysis.quality.overallScore,
+        strengths: aiAnalysis.summary.strengths,
+        weaknesses: aiAnalysis.summary.weaknesses,
+        quickFixes: aiAnalysis.recommendations.immediate,
+        longTermGoals: aiAnalysis.recommendations.longTerm,
+        priorityLevel: aiAnalysis.summary.priorityLevel
+      },
+      
+      // AI-generated insights
+      insights: {
+        codeComplexityLevel: aiAnalysis.complexity.cyclomaticComplexity < 5 ? 'simple' : 
+                           aiAnalysis.complexity.cyclomaticComplexity < 15 ? 'moderate' : 
+                           aiAnalysis.complexity.cyclomaticComplexity < 25 ? 'complex' : 'very-complex',
+        maintenanceEffort: aiAnalysis.complexity.maintainabilityIndex > 70 ? 'low' : 
+                          aiAnalysis.complexity.maintainabilityIndex > 50 ? 'medium' : 'high',
+        testCoverage: testCases.length > 6 ? 'excellent' : testCases.length > 4 ? 'good' : testCases.length > 2 ? 'fair' : 'poor',
+        readabilityScore: aiAnalysis.complexity.readabilityScore,
+        technicalDebt: aiAnalysis.quality.overallScore > 80 ? 'low' : aiAnalysis.quality.overallScore > 60 ? 'medium' : 
+                      aiAnalysis.quality.overallScore > 40 ? 'high' : 'very-high'
       }
-    }
-  } else {
-    // ... keep existing code (generic test case generation for other languages)
-    if (code.length > 50) {
-      testCases.push({
-        name: "Test 1",
-        description: "Basic functionality test",
-        input: "Sample input",
-        expectedOutput: "Expected output",
-        passed: true,
-        actualOutput: "Expected output",
-      });
-      
-      testCases.push({
-        name: "Test 2",
-        description: "Edge case test",
-        input: "Edge case input",
-        expectedOutput: "Expected edge case output",
-        passed: Math.random() > 0.5,
-        actualOutput: Math.random() > 0.5 ? "Expected edge case output" : "Unexpected output",
-        executionDetails: "Additional execution details when needed"
-      });
-    }
+    };
+    
+  } catch (error) {
+    console.error('❌ AI analysis failed, falling back to static analysis:', error);
+    // Fallback to existing static analysis
+    return analyzeCodeDeep(code, language);
+  }
+};
+
+// Map AI analysis results to our grading system
+function mapAIAnalysisToGrades(aiAnalysis: AICodeAnalysisResult): {
+  complexity: 'A' | 'B' | 'C' | 'D';
+  maintainability: 'A' | 'B' | 'C' | 'D';
+  reliability: 'A' | 'B' | 'C' | 'D';
+  overall: 'A' | 'B' | 'C' | 'D';
+} {
+  // Complexity grading based on AI analysis
+  const complexity = aiAnalysis.complexity.cyclomaticComplexity < 10 ? 'A' :
+                    aiAnalysis.complexity.cyclomaticComplexity < 15 ? 'B' :
+                    aiAnalysis.complexity.cyclomaticComplexity < 20 ? 'C' : 'D';
+  
+  // Maintainability grading
+  const maintainability = aiAnalysis.complexity.maintainabilityIndex > 80 ? 'A' :
+                         aiAnalysis.complexity.maintainabilityIndex > 60 ? 'B' :
+                         aiAnalysis.complexity.maintainabilityIndex > 40 ? 'C' : 'D';
+  
+  // Reliability grading (considering security and quality)
+  const securityPenalty = aiAnalysis.security.filter(s => s.severity === 'high' || s.severity === 'critical').length * 15;
+  const adjustedScore = Math.max(0, aiAnalysis.quality.overallScore - securityPenalty);
+  const reliability = adjustedScore > 85 ? 'A' : adjustedScore > 70 ? 'B' : adjustedScore > 50 ? 'C' : 'D';
+  
+  // Overall grade (weighted average)
+  const gradeToNumber = { A: 4, B: 3, C: 2, D: 1 };
+  const numberToGrade = { 4: 'A', 3: 'B', 2: 'C', 1: 'D' } as const;
+  
+  const weightedAverage = (
+    gradeToNumber[complexity] * 0.3 +
+    gradeToNumber[maintainability] * 0.4 +
+    gradeToNumber[reliability] * 0.3
+  );
+  
+  const overallGradeNumber = Math.round(weightedAverage) as 1 | 2 | 3 | 4;
+  const overall = numberToGrade[overallGradeNumber];
+  
+  return { complexity, maintainability, reliability, overall };
+}
+
+// Format AI suggestions into readable text
+function formatAISuggestions(aiAnalysis: AICodeAnalysisResult): string {
+  const sections = [];
+  
+  if (aiAnalysis.recommendations.immediate.length > 0) {
+    sections.push(`🚨 **Immediate Actions:**\n${aiAnalysis.recommendations.immediate.map(r => `• ${r}`).join('\n')}`);
   }
   
-  return testCases;
+  if (aiAnalysis.recommendations.shortTerm.length > 0) {
+    sections.push(`📋 **Short-term Improvements:**\n${aiAnalysis.recommendations.shortTerm.map(r => `• ${r}`).join('\n')}`);
+  }
+  
+  if (aiAnalysis.recommendations.longTerm.length > 0) {
+    sections.push(`🎯 **Long-term Goals:**\n${aiAnalysis.recommendations.longTerm.map(r => `• ${r}`).join('\n')}`);
+  }
+  
+  if (aiAnalysis.security.length > 0) {
+    sections.push(`🔒 **Security Issues:**\n${aiAnalysis.security.map(s => `• ${s.issue}: ${s.recommendation}`).join('\n')}`);
+  }
+  
+  if (aiAnalysis.performance.length > 0) {
+    sections.push(`⚡ **Performance Optimizations:**\n${aiAnalysis.performance.map(p => `• ${p.issue}: ${p.optimization}`).join('\n')}`);
+  }
+  
+  return sections.join('\n\n') || 'No specific suggestions at this time.';
+}
+
+// Group code smells by category
+function groupByCategory(codeSmells: any[]): { [key: string]: any[] } {
+  return codeSmells.reduce((acc, smell) => {
+    const category = smell.type || 'general';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(smell);
+    return acc;
+  }, {});
+}
+
+// Legacy deep analysis pipeline with GROQ integration (fallback)
+export const analyzeCodeDeep = async (code: string, language: string = 'javascript') => {
+  const startTime = Date.now();
+  const lines = code.split('\n');
+  
+  // 1. Static analysis (existing logic)
+  const violationResult = analyzeCodeViolations(code, language);
+  const { details, lineReferences } = analyzeCodeForIssues(code, language);
+  const categorizedViolations = categorizeViolations(details, lineReferences);
+
+  // 2. Metrics
+  const cyclomaticComplexity = calculateCyclomaticComplexity(code, language);
+  const maintainabilityScore = calculateMaintainability(code, language);
+
+  // --- NEW: Function Counting, Avg Length, Max Nesting ---
+  let functionCount = 0;
+  let totalFunctionLength = 0;
+  let maxNestingDepth = 0;
+  const linesArr = code.split('\n');
+  let inFunction = false;
+  let currentFunctionLength = 0;
+  let currentNesting = 0;
+
+  linesArr.forEach((line) => {
+    // Detect function start (JS/TS/Python/Java)
+    const isFunctionStart =
+      /function\s+\w+\s*\(|def\s+\w+\s*\(|(?:public|private|protected)\s+(?:static\s+)?\w+\s+\w+\s*\(/.test(line) ||
+      /const\s+\w+\s*=\s*\(/.test(line) ||
+      /\w+\s*:\s*function\s*\(/.test(line);
+    if (isFunctionStart) {
+      inFunction = true;
+      functionCount++;
+      if (currentFunctionLength > 0) {
+        totalFunctionLength += currentFunctionLength;
+      }
+      currentFunctionLength = 1;
+      currentNesting = 0;
+    } else if (inFunction) {
+      currentFunctionLength++;
+      // End of function (simple heuristic)
+      if (/^\s*}\s*$/.test(line) || /^\s*$/.test(line)) {
+        totalFunctionLength += currentFunctionLength;
+        currentFunctionLength = 0;
+        inFunction = false;
+      }
+    }
+    // Track nesting depth
+    const openBraces = (line.match(/{/g) || []).length;
+    const closeBraces = (line.match(/}/g) || []).length;
+    currentNesting += openBraces - closeBraces;
+    if (currentNesting > maxNestingDepth) maxNestingDepth = currentNesting;
+  });
+  if (currentFunctionLength > 0) totalFunctionLength += currentFunctionLength;
+  const averageFunctionLength = functionCount > 0 ? totalFunctionLength / functionCount : 0;
+
+  // Compose metrics result
+  const metrics = {
+    linesOfCode: linesArr.length,
+    codeLines: linesArr.filter(l => l.trim().length > 0).length,
+    commentLines: linesArr.filter(l => l.trim().startsWith('//') || l.trim().startsWith('/*') || l.trim().startsWith('*')).length,
+    commentPercentage: 0, // Will be set below
+    functionCount,
+    averageFunctionLength,
+    maxNestingDepth,
+    cyclomaticComplexity: cyclomaticComplexity,
+  };
+  metrics.commentPercentage = metrics.codeLines > 0 ? metrics.commentLines / metrics.codeLines * 100 : 0;
+
+  // --- NEW: Code Smells Extraction ---
+  // Use the same logic as in analyzeCodeForIssues for customSmells
+  // Note: lines variable already declared above
+  const codeSmells: { id: string; message: string; line: number; severity?: 'major' | 'minor' }[] = [];
+  rules.customSmells.forEach((smell) => {
+    const regex = new RegExp(smell.pattern, 'g');
+    lines.forEach((line, idx) => {
+      const isComment = line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*');
+      if (regex.test(line) && !isComment) {
+        codeSmells.push({
+          id: smell.id,
+          message: smell.message,
+          line: idx + 1,
+          severity: smell.severity || 'minor',
+        });
+      }
+    });
+  });
+
+  // --- NEW: Code Smells Analysis ---
+  const codeSmellsAnalysis = (() => {
+    if (!codeSmells || codeSmells.length === 0) {
+      return {
+        smells: [],
+        totalCount: 0,
+        majorCount: 0,
+        minorCount: 0,
+        categories: {},
+      };
+    }
+    const smells = codeSmells.map(smell => ({
+      type: (smell.id === 'magic-numbers' ? 'magic-numbers' :
+             smell.id === 'no-console-log' ? 'dead-code' :
+             smell.id === 'single-letter-var' ? 'unused-variables' :
+             smell.id === 'redundant-computation' ? 'duplicate-code' :
+             smell.id === 'no-todo-fixme' ? 'dead-code' :
+             smell.id as any),
+      severity: smell.severity || 'minor',
+      description: smell.message,
+      line: smell.line,
+      suggestion: getSmellSuggestion(smell.id),
+      impact: getSmellImpact(smell.id),
+    }));
+    const categories: { [key: string]: any[] } = {};
+    smells.forEach(smell => {
+      if (!categories[smell.type]) categories[smell.type] = [];
+      categories[smell.type].push(smell);
+    });
+    return {
+      smells,
+      totalCount: smells.length,
+      majorCount: smells.filter(s => s.severity === 'major').length,
+      minorCount: smells.filter(s => s.severity === 'minor').length,
+      categories,
+    };
+  })();
+
+  // --- Simple Test Cases (just placeholders for execution) ---
+  const testCases = [
+    {
+      input: "",
+      expectedOutput: "",
+      actualOutput: "",
+      passed: undefined,
+      executionDetails: "",
+    },
+    {
+      input: "",
+      expectedOutput: "",
+      actualOutput: "",
+      passed: undefined,
+      executionDetails: "",
+    },
+    {
+      input: "",
+      expectedOutput: "",
+      actualOutput: "",
+      passed: undefined,
+      executionDetails: "",
+    }
+  ];
+
+  // --- NEW: GROQ-Based Comprehensive Syntax Error Detection ---
+  const syntaxAnalysis: SyntaxAnalysisResult = await analyzeSyntaxErrors(code, language);
+  const syntaxErrors: string[] = formatSyntaxErrors(syntaxAnalysis);
+  const quickFixes: string[] = getQuickFixes(syntaxAnalysis);
+
+  // 3. Enhanced GROQ integration for comprehensive code analysis
+  let groqResult = "";
+  // Note: GROQ integration is handled through Netlify functions for security
+  // This frontend code focuses on basic analysis, AI analysis is done separately
+  // 4. Enhanced parsing of GROQ result for comprehensive analysis
+  let aiSuggestions: string = '';
+  let securityIssues: string[] = [];
+  let performanceIssues: string[] = [];
+  
+  if (groqResult && typeof groqResult === 'string') {
+    // Parse different sections of the AI analysis
+    const result = String(groqResult);
+    
+    // Note: Syntax errors are now handled by GROQ-based syntax analyzer above
+    // AI can provide additional insights, but basic syntax errors are detected by our analyzer
+    
+    // Extract security issues
+    const securitySection = result.match(/security[\s\S]*?(?=\n\n|\n[A-Z]|performance|maintainability|$)/i);
+    if (securitySection) {
+      securityIssues = securitySection[0].split('\n')
+        .filter(line => line.trim() && !line.match(/^security:?$/i))
+        .map(line => line.replace(/^[-*•]\s*/, '').trim());
+    }
+    
+    // Extract performance issues
+    const performanceSection = result.match(/performance[\s\S]*?(?=\n\n|\n[A-Z]|security|maintainability|$)/i);
+    if (performanceSection) {
+      performanceIssues = performanceSection[0].split('\n')
+        .filter(line => line.trim() && !line.match(/^performance:?$/i))
+        .map(line => line.replace(/^[-*•]\s*/, '').trim());
+    }
+    
+    // Extract general suggestions
+    const suggestionPatterns = [
+      /suggestions?:[\s\S]*?(?=\n\n|\n[A-Z]|$)/i,
+      /improvements?:[\s\S]*?(?=\n\n|\n[A-Z]|$)/i,
+      /recommendations?:[\s\S]*?(?=\n\n|\n[A-Z]|$)/i
+    ];
+    
+    for (const pattern of suggestionPatterns) {
+      const match = result.match(pattern);
+      if (match) {
+        aiSuggestions = match[0].replace(/^[^:]*:\s*/, '').trim();
+        break;
+      }
+    }
+    
+    // Fallback: use entire result if no specific sections found
+    if (!aiSuggestions && !syntaxErrors.length) {
+      aiSuggestions = result.trim();
+    }
+  }
+
+  // --- Enhanced Reliability Metric ---
+  // Comprehensive scoring: start at 100, subtract for various issues
+  let reliabilityScore = 100;
+  reliabilityScore -= (categorizedViolations.major || 0) * 10;
+  reliabilityScore -= (categorizedViolations.minor || 0) * 2;
+  reliabilityScore -= (codeSmells.filter(s => s.severity === 'major').length) * 5;
+  reliabilityScore -= (codeSmells.filter(s => s.severity === 'minor').length) * 2;
+  reliabilityScore -= syntaxErrors.length * 8;
+  reliabilityScore -= securityIssues.length * 12;
+  reliabilityScore -= performanceIssues.length * 4;
+  
+  // Structural penalties
+  if (metrics.maxNestingDepth > 6) reliabilityScore -= 5;
+  if (metrics.maxNestingDepth > 8) reliabilityScore -= 10;
+  if (metrics.averageFunctionLength > 40) reliabilityScore -= 5;
+  if (metrics.averageFunctionLength > 60) reliabilityScore -= 10;
+  if (metrics.commentPercentage < 5) reliabilityScore -= 5;
+  if (cyclomaticComplexity > 15) reliabilityScore -= 8;
+  if (cyclomaticComplexity > 25) reliabilityScore -= 15;
+  
+  // Ensure score doesn't go below 0
+  if (reliabilityScore < 0) reliabilityScore = 0;
+
+  // --- Overall Grade ---
+  // Weighted average of maintainability, cyclomatic, reliability
+  const gradeScore =
+    (maintainabilityScore * 0.4) +
+    ((100 - cyclomaticComplexity * 5) * 0.3) +
+    (reliabilityScore * 0.3);
+  let overallGrade: 'A' | 'B' | 'C' | 'D';
+  if (gradeScore > 85) overallGrade = 'A';
+  else if (gradeScore > 70) overallGrade = 'B';
+  else if (gradeScore > 50) overallGrade = 'C';
+  else overallGrade = 'D';
+
+  // --- Complexity Analysis ---
+  const complexityAnalysis = {
+    cyclomaticComplexity,
+    maxNestingDepth: metrics.maxNestingDepth,
+    functionCount: metrics.functionCount,
+    averageFunctionLength: metrics.averageFunctionLength,
+    // Add required complexity analysis properties
+    timeComplexity: {
+      notation: (cyclomaticComplexity < 5 ? 'O(1)' : 
+                 cyclomaticComplexity < 10 ? 'O(n)' : 
+                 cyclomaticComplexity < 20 ? 'O(n log n)' : 
+                 cyclomaticComplexity < 30 ? 'O(n²)' : 'O(2^n)') as any,
+      confidence: (cyclomaticComplexity < 10 ? 'high' : 
+                   cyclomaticComplexity < 20 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+      description: `Estimated based on cyclomatic complexity: ${cyclomaticComplexity}`,
+      factors: [
+        ...(hasNestedLoops(code) ? ['Nested loops detected'] : []),
+        ...(hasRecursion(code) ? ['Recursive calls detected'] : []),
+        ...(cyclomaticComplexity > 10 ? ['High cyclomatic complexity'] : [])
+      ]
+    },
+    spaceComplexity: {
+      notation: (metrics.maxNestingDepth < 3 ? 'O(1)' : 
+                 metrics.maxNestingDepth < 5 ? 'O(n)' : 
+                 metrics.maxNestingDepth < 7 ? 'O(n log n)' : 'O(n²)') as any,
+      confidence: (metrics.maxNestingDepth < 5 ? 'high' : 
+                   metrics.maxNestingDepth < 8 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+      description: `Estimated based on nesting depth: ${metrics.maxNestingDepth}`,
+      factors: [
+        ...(hasDataStructures(code) ? ['Data structures detected'] : []),
+        ...(hasRecursion(code) ? ['Recursive calls (stack usage)'] : []),
+        ...(metrics.maxNestingDepth > 5 ? ['Deep nesting detected'] : [])
+      ]
+    }
+  };
+
+  // 6. Compose the unified analysis result
+  return {
+    originalCode: code,
+    cyclomaticComplexity: {
+      score: (cyclomaticComplexity < 10 ? 'A' : cyclomaticComplexity < 15 ? 'B' : cyclomaticComplexity < 20 ? 'C' : 'D') as 'A' | 'B' | 'C' | 'D',
+      description: `Cyclomatic Complexity: ${cyclomaticComplexity}`,
+    },
+    maintainability: {
+      score: (maintainabilityScore > 80 ? 'A' : maintainabilityScore > 60 ? 'B' : maintainabilityScore > 40 ? 'C' : 'D') as 'A' | 'B' | 'C' | 'D',
+      description: `Maintainability Index: ${maintainabilityScore}`,
+    },
+    reliability: { score: (reliabilityScore > 85 ? 'A' : reliabilityScore > 70 ? 'B' : reliabilityScore > 50 ? 'C' : 'D') as 'A' | 'B' | 'C' | 'D', description: `Reliability Score: ${reliabilityScore}` },
+    violations: categorizedViolations,
+    aiSuggestions,
+    correctedCode: '', // TODO: Optionally use GROQ for code correction
+    overallGrade,
+    metrics,
+    testCases,
+    complexityAnalysis,
+    codeSmells: codeSmellsAnalysis, // Now a full CodeSmellsAnalysis object
+    syntaxErrors, // IntelliSense-like syntax error detection
+    securityIssues: securityIssues || [], // AI-detected security issues
+    performanceIssues: performanceIssues || [], // AI-detected performance issues
+    
+    // Enhanced syntax analysis metadata
+    analysisMetadata: {
+      analysisDate: new Date(),
+      language,
+      codeSize: lines.length < 50 ? 'small' as const : lines.length < 200 ? 'medium' as const : 'large' as const,
+      analysisTime: Date.now() - startTime,
+      aiAnalysisUsed: syntaxAnalysis.aiAnalysisUsed, // Reflects whether GROQ was used for syntax analysis
+      version: '2.1.0-GROQ-Syntax'
+    },
+    
+    // Summary including syntax errors
+    summary: {
+      overallScore: Math.round(gradeScore),
+      strengths: [
+        ...(syntaxAnalysis.errors.length === 0 ? ['No syntax errors detected'] : []),
+        ...(cyclomaticComplexity < 10 ? ['Low complexity'] : []),
+        ...(maintainabilityScore > 70 ? ['Good maintainability'] : [])
+      ],
+      weaknesses: [
+        ...(syntaxAnalysis.errors.length > 0 ? [`${syntaxAnalysis.errors.length} syntax error(s) found`] : []),
+        ...(syntaxAnalysis.warnings.length > 0 ? [`${syntaxAnalysis.warnings.length} warning(s) found`] : []),
+        ...(cyclomaticComplexity > 15 ? ['High complexity'] : []),
+        ...(maintainabilityScore < 50 ? ['Poor maintainability'] : [])
+      ],
+      quickFixes: [
+        ...quickFixes.slice(0, 3), // Top 3 syntax fixes
+        ...(cyclomaticComplexity > 15 ? ['Reduce function complexity'] : []),
+        ...(categorizedViolations.major > 0 ? ['Fix major violations'] : [])
+      ],
+      longTermGoals: [
+        ...(syntaxAnalysis.suggestions.length > 0 ? ['Address style suggestions'] : []),
+        ...(maintainabilityScore < 70 ? ['Improve code maintainability'] : []),
+        'Add comprehensive test coverage'
+      ],
+      priorityLevel: (syntaxAnalysis.errors.length > 0 ? 'critical' : 
+                     syntaxAnalysis.warnings.length > 0 ? 'high' :
+                     categorizedViolations.major > 0 ? 'medium' : 'low') as 'low' | 'medium' | 'high' | 'critical'
+    },
+    
+    // Enhanced insights
+    insights: {
+      codeComplexityLevel: (cyclomaticComplexity < 5 ? 'simple' : 
+                           cyclomaticComplexity < 15 ? 'moderate' : 
+                           cyclomaticComplexity < 25 ? 'complex' : 'very-complex') as 'simple' | 'moderate' | 'complex' | 'very-complex',
+      maintenanceEffort: (maintainabilityScore > 70 ? 'low' : 
+                         maintainabilityScore > 50 ? 'medium' : 'high') as 'low' | 'medium' | 'high',
+      testCoverage: (testCases.length > 6 ? 'excellent' : 
+                    testCases.length > 4 ? 'good' : 
+                    testCases.length > 2 ? 'fair' : 'poor') as 'poor' | 'fair' | 'good' | 'excellent',
+      readabilityScore: Math.max(0, 100 - (syntaxAnalysis.errors.length * 20) - (syntaxAnalysis.warnings.length * 5)),
+      technicalDebt: (syntaxAnalysis.errors.length > 0 ? 'very-high' :
+                     syntaxAnalysis.warnings.length > 5 ? 'high' :
+                     syntaxAnalysis.warnings.length > 0 ? 'medium' : 'low') as 'low' | 'medium' | 'high' | 'very-high'
+    }
+  };
 };
 
 // Extract variables used in a line of code
@@ -1549,4 +1914,547 @@ function extractVariablesInLine(line: string): string[] {
   }
   
   return vars;
+}
+
+// Helper function to determine if a risky operation should be flagged
+function shouldFlagRiskyOperation(
+  line: string,
+  operationId: string,
+  boundedLoopVars: Set<string>,
+  nullProtectedVars: Set<string>,
+  mainFunctionInputs: Set<string>,
+  zeroCheckedVars: Set<string>,
+  safeNullHandling: boolean
+): boolean {
+  const variablesInLine = extractVariablesInLine(line);
+  
+  switch (operationId) {
+    case 'json-parse':
+      // Flag if JSON.parse is used without try-catch protection
+      return !safeNullHandling || !variablesInLine.some(v => nullProtectedVars.has(v));
+    
+    case 'file-system':
+      // Flag if file operations are used without error handling
+      return !safeNullHandling;
+    
+    case 'array-access':
+      // Flag if array access might be out of bounds
+      return !variablesInLine.some(v => boundedLoopVars.has(v) || nullProtectedVars.has(v));
+    
+    case 'division':
+      // Flag if division might result in division by zero
+      return !variablesInLine.some(v => zeroCheckedVars.has(v));
+    
+    case 'null-reference':
+      // Flag if null reference might occur
+      return !variablesInLine.some(v => nullProtectedVars.has(v));
+    
+    case 'regex-operations':
+      // Flag if regex operations might throw
+      return !safeNullHandling;
+    
+    case 'type-conversion':
+      // Flag if type conversion might fail
+      return !safeNullHandling || !variablesInLine.some(v => nullProtectedVars.has(v));
+    
+    default:
+      // Default: flag if not in safe context
+      return !safeNullHandling;
+  }
+}
+
+// Helper functions for complexity analysis
+function hasNestedLoops(code: string): boolean {
+  const lines = code.split('\n');
+  let loopDepth = 0;
+  let maxLoopDepth = 0;
+  
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed.match(/\b(?:for|while|do)\b/)) {
+      loopDepth++;
+      maxLoopDepth = Math.max(maxLoopDepth, loopDepth);
+    }
+    if (trimmed.includes('}') && loopDepth > 0) {
+      loopDepth--;
+    }
+  });
+  
+  return maxLoopDepth > 1;
+}
+
+function hasRecursion(code: string): boolean {
+  // Simple heuristic: look for function calls that might be recursive
+  const functionNameMatch = code.match(/(?:function|def)\s+(\w+)/g);
+  if (!functionNameMatch) return false;
+  
+  const functionNames = functionNameMatch.map(match => 
+    match.replace(/(?:function|def)\s+/, '')
+  );
+  
+  return functionNames.some(name => 
+    code.includes(`${name}(`) && 
+    code.indexOf(`${name}(`) !== code.lastIndexOf(`${name}(`)
+  );
+}
+
+function hasDataStructures(code: string): boolean {
+  // Look for common data structure patterns
+  return /(?:new\s+(?:Array|Map|Set|Object)|(?:\[\]|\{\})|(?:push|pop|shift|unshift|splice))/.test(code);
+}
+
+// AI-powered test case generation using Groq
+async function generateTestCasesFromCode(code: string, language: string): Promise<TestCase[]> {
+  try {
+    // Note: AI test generation moved to Netlify functions
+    // Using static generation for frontend analysis
+    console.warn('Using static test case generation in frontend');
+    return generateStaticTestCases(code, language);
+  } catch (error) {
+    console.warn('AI test generation failed, falling back to static generation:', error);
+    return generateStaticTestCases(code, language);
+  }
+}
+
+// AI-powered test case generation using Groq
+async function generateTestCasesWithGroq(code: string, language: string): Promise<TestCase[]> {
+  const prompt = `Analyze the following ${language} code and generate comprehensive test cases. 
+
+For each test case, provide:
+1. A descriptive name
+2. A clear description of what is being tested
+3. Specific input values (if applicable)
+4. Expected output or behavior
+5. Test category (normal, edge, error, boundary)
+
+Focus on:
+- Normal functionality with typical inputs
+- Edge cases (empty, null, zero, maximum values)
+- Boundary conditions
+- Error handling scenarios
+- Performance considerations for large inputs
+- Security concerns if applicable
+
+Code to analyze:
+\`\`\`${language}
+${code}
+\`\`\`
+
+IMPORTANT: Return the response in the following JSON format:
+{
+  "testCases": [
+    {
+      "name": "Test Case Name",
+      "description": "Detailed description of what this test verifies",
+      "input": "Specific input value or description",
+      "expectedOutput": "Expected result or behavior",
+      "category": "normal|edge|error|boundary|performance|security"
+    }
+  ]
+}
+
+Generate 5-8 diverse test cases covering different scenarios.`;
+
+  try {
+    console.log('Generating AI-powered test cases...');
+    const groqResponse = await getGroqResponse(prompt);
+    console.log('Groq response received, parsing test cases...');
+    const testCases = parseGroqTestCasesResponse(groqResponse);
+    console.log(`Successfully generated ${testCases.length} AI test cases`);
+    return testCases;
+  } catch (error) {
+    console.error('Groq API call failed for test case generation:', error);
+    throw error;
+  }
+}
+
+// Parse Groq response and extract test cases
+function parseGroqTestCasesResponse(response: string): TestCase[] {
+  try {
+    // Try to extract JSON from the response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    
+    if (!parsed.testCases || !Array.isArray(parsed.testCases)) {
+      throw new Error('Invalid response format');
+    }
+
+    return parsed.testCases.map((tc: any) => ({
+      name: tc.name || 'Generated Test Case',
+      description: tc.description || 'AI-generated test case',
+      input: tc.input || '',
+      expectedOutput: tc.expectedOutput || 'Expected behavior described',
+      category: tc.category || 'normal'
+    }));
+
+  } catch (error) {
+    console.warn('Failed to parse Groq response, attempting fallback parsing:', error);
+    
+    // Fallback: try to extract test cases from unstructured text
+    return parseUnstructuredTestCases(response);
+  }
+}
+
+// Fallback parser for unstructured Groq responses
+function parseUnstructuredTestCases(response: string): TestCase[] {
+  const testCases: TestCase[] = [];
+  
+  // Try multiple parsing strategies
+  
+  // Strategy 1: Look for numbered or titled test cases
+  const sections = response.split(/(?:Test Case|Test \d+|Case \d+|\d+\.|##?\s*Test)/i);
+  
+  sections.forEach((section, index) => {
+    if (index === 0) return; // Skip the first section (usually intro text)
+    
+    const lines = section.split('\n').filter(line => line.trim());
+    let name = '';
+    let description = '';
+    let input = '';
+    let expectedOutput = '';
+    let category = 'normal';
+    
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      const lowerTrimmed = trimmed.toLowerCase();
+      
+      if (lowerTrimmed.includes('name:') || lowerTrimmed.includes('title:')) {
+        name = trimmed.replace(/^.*?:/, '').trim();
+      } else if (lowerTrimmed.includes('description:') || lowerTrimmed.includes('desc:')) {
+        description = trimmed.replace(/^.*?:/, '').trim();
+      } else if (lowerTrimmed.includes('input:')) {
+        input = trimmed.replace(/^.*?:/, '').trim();
+      } else if (lowerTrimmed.includes('expected:') || lowerTrimmed.includes('output:')) {
+        expectedOutput = trimmed.replace(/^.*?:/, '').trim();
+      } else if (lowerTrimmed.includes('category:') || lowerTrimmed.includes('type:')) {
+        category = trimmed.replace(/^.*?:/, '').trim().toLowerCase();
+      }
+      
+      // If no explicit labels, try to infer from content
+      if (!name && trimmed.length > 10 && trimmed.length < 100 && !trimmed.includes(':')) {
+        name = trimmed;
+      }
+    });
+    
+    if (name || description) {
+      testCases.push({
+        name: name || `AI Generated Test ${index}`,
+        description: description || 'AI-generated test case',
+        input: input || 'Contextual input',
+        expectedOutput: expectedOutput || 'Expected behavior based on code analysis',
+        category
+      });
+    }
+  });
+  
+  // Strategy 2: If no structured test cases found, look for bullet points or numbered lists
+  if (testCases.length === 0) {
+    const bulletPoints = response.match(/(?:[-*•]\s+|^\d+\.\s+)(.+)$/gm);
+    if (bulletPoints && bulletPoints.length > 0) {
+      bulletPoints.forEach((point, index) => {
+        const cleaned = point.replace(/^[-*•\d.\s]+/, '').trim();
+        if (cleaned.length > 10) {
+          testCases.push({
+            name: `Test Case ${index + 1}`,
+            description: cleaned,
+            input: 'Dynamic input based on test scenario',
+            expectedOutput: 'Expected result based on test description'
+          });
+        }
+      });
+    }
+  }
+  
+  // Strategy 3: Extract meaningful sentences as test descriptions
+  if (testCases.length === 0) {
+    const sentences = response.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    sentences.slice(0, 5).forEach((sentence, index) => {
+      testCases.push({
+        name: `Test Scenario ${index + 1}`,
+        description: sentence.trim(),
+        input: 'Relevant input for scenario',
+        expectedOutput: 'Expected behavior for scenario'
+      });
+    });
+  }
+  
+  // Final fallback: return at least one generic test case
+  if (testCases.length === 0) {
+    testCases.push({
+      name: 'AI Analysis Test',
+      description: 'Comprehensive test based on AI code analysis',
+      input: 'Analyzed input pattern',
+      expectedOutput: 'Expected output based on code logic'
+    });
+  }
+  
+  return testCases.slice(0, 8); // Limit to 8 test cases max
+}
+
+// Helper function to generate sample inputs based on detected patterns
+function generateSampleInput(language: string, params: string[], hasNumbers: boolean, hasString: boolean, hasArray: boolean) {
+  const samples = {
+    normal: '',
+    empty: '',
+    boundary: '',
+    invalid: ''
+  };
+
+  if (params.length > 0) {
+    // Generate based on parameter analysis
+    const normalValues = params.map(param => {
+      if (param.includes('int') || param.includes('number') || hasNumbers) return '5';
+      if (param.includes('string') || param.includes('str') || hasString) return '"hello"';
+      if (param.includes('array') || param.includes('list') || hasArray) return '[1,2,3]';
+      if (param.includes('bool')) return 'true';
+      return '"value"';
+    });
+    
+    samples.normal = language === 'python' ? normalValues.join(', ') : normalValues.join(', ');
+    samples.empty = language === 'python' ? 'None' : 'null';
+    samples.boundary = hasNumbers ? '0' : hasArray ? '[]' : '""';
+    samples.invalid = hasNumbers ? '"not_a_number"' : hasArray ? 'null' : '123';
+  } else {
+    // Fallback to detected patterns
+    if (hasNumbers) {
+      samples.normal = '42';
+      samples.empty = '0';
+      samples.boundary = '-1';
+      samples.invalid = '"not_number"';
+    } else if (hasString) {
+      samples.normal = '"test input"';
+      samples.empty = '""';
+      samples.boundary = '"a"';
+      samples.invalid = 'null';
+    } else if (hasArray) {
+      samples.normal = '[1, 2, 3, 4, 5]';
+      samples.empty = '[]';
+      samples.boundary = '[1]';
+      samples.invalid = '"not_array"';
+    } else {
+      samples.normal = 'valid_input';
+      samples.empty = '';
+      samples.boundary = 'boundary_case';
+      samples.invalid = 'invalid_input';
+    }
+  }
+
+  return samples;
+}
+
+// Helper function to generate expected outputs
+function generateExpectedOutput(returnType: string, language: string, testType: string): string {
+  if (testType === 'empty') {
+    if (returnType === 'void' || returnType === 'None') return 'No output expected';
+    if (returnType === 'boolean' || returnType === 'bool') return 'false';
+    if (returnType === 'int' || returnType === 'number') return '0';
+    if (returnType === 'String' || returnType === 'str') return '""';
+    return 'null or empty result';
+  }
+  
+  if (testType === 'invalid') {
+    return 'Should throw error or return error indicator';
+  }
+  
+  if (testType === 'boundary') {
+    return 'Should handle boundary conditions correctly';
+  }
+  
+  if (testType === 'large') {
+    return 'Should process large input efficiently';
+  }
+  
+  // Normal case
+  if (returnType === 'void' || returnType === 'None') return 'Function executes without errors';
+  if (returnType === 'boolean' || returnType === 'bool') return 'true';
+  if (returnType === 'int' || returnType === 'number') return 'positive number';
+  if (returnType === 'String' || returnType === 'str') return 'valid string output';
+  if (returnType.includes('array') || returnType.includes('list')) return 'array with processed elements';
+  
+  return 'Expected valid output based on input';
+}
+
+// Static fallback test case generation (original heuristic method)
+export function generateStaticTestCases(code: string, language: string): TestCase[] {
+  const testCases: TestCase[] = [];
+  
+  // Enhanced language-aware test case generation
+  const lines = code.split('\n');
+  let functionName = '';
+  let functionParams: string[] = [];
+  let hasInputs = false;
+  let hasLoop = false;
+  let hasCondition = false;
+  let hasArray = false;
+  let hasString = false;
+  let hasNumbers = false;
+  let returnType = '';
+  let isAsync = false;
+  
+  // Analyze code structure
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+    
+    // Enhanced function detection by language
+    if (language === 'javascript' || language === 'typescript') {
+      const jsFunction = trimmedLine.match(/(?:function|const|let|var)\s+(\w+)\s*[=:]?\s*(?:async\s+)?\([^)]*\)|(?:async\s+)?(\w+)\s*\([^)]*\)\s*=>/);
+      if (jsFunction) {
+        functionName = jsFunction[1] || jsFunction[2];
+        isAsync = trimmedLine.includes('async');
+        const paramMatch = trimmedLine.match(/\(([^)]*)\)/);
+        if (paramMatch) {
+          functionParams = paramMatch[1].split(',').map(p => p.trim()).filter(p => p);
+        }
+      }
+    } else if (language === 'python') {
+      const pyFunction = trimmedLine.match(/def\s+(\w+)\s*\([^)]*\)/);
+      if (pyFunction) {
+        functionName = pyFunction[1];
+        const paramMatch = trimmedLine.match(/\(([^)]*)\)/);
+        if (paramMatch) {
+          functionParams = paramMatch[1].split(',').map(p => p.trim().split(':')[0]).filter(p => p && p !== 'self');
+        }
+      }
+    } else if (language === 'java' || language === 'cpp' || language === 'csharp') {
+      const javaFunction = trimmedLine.match(/(?:public|private|protected|static).*?(\w+)\s*\([^)]*\)/);
+      if (javaFunction) {
+        functionName = javaFunction[1];
+        const returnMatch = trimmedLine.match(/(?:public|private|protected|static).*?(int|void|String|boolean|double|float|\w+)\s+\w+/);
+        if (returnMatch) {
+          returnType = returnMatch[1];
+        }
+      }
+    }
+    
+    // Detect inputs/parameters
+    if (trimmedLine.match(/(?:input|scanf|readline|prompt|argv|args)/)) {
+      hasInputs = true;
+    }
+    
+    // Detect loops
+    if (trimmedLine.match(/(?:for|while|do)/)) {
+      hasLoop = true;
+    }
+    
+    // Detect conditions
+    if (trimmedLine.match(/(?:if|switch|case)/)) {
+      hasCondition = true;
+    }
+    
+    // Detect data types
+    if (trimmedLine.match(/\[|\]|array|Array/)) {
+      hasArray = true;
+    }
+    if (trimmedLine.match(/string|String|".*"|'.*'/)) {
+      hasString = true;
+    }
+    if (trimmedLine.match(/\d+|int|Integer|float|double/)) {
+      hasNumbers = true;
+    }
+  });
+  
+  // Generate comprehensive test cases based on detected patterns
+  if (functionName || hasInputs) {
+    // Generate language-specific test cases
+    const inputSample = generateSampleInput(language, functionParams, hasNumbers, hasString, hasArray);
+    
+    // Test Case 1: Happy Path
+    testCases.push({
+      name: `${functionName || 'Function'} - Happy Path`,
+      description: "Test with valid, typical input values",
+      input: inputSample.normal,
+      expectedOutput: generateExpectedOutput(returnType, language, 'normal'),
+      category: 'normal',
+      priority: 'high'
+    });
+    
+    // Test Case 2: Edge Cases
+    testCases.push({
+      name: `${functionName || 'Function'} - Empty Input`,
+      description: "Test with empty or null input values",
+      input: inputSample.empty,
+      expectedOutput: generateExpectedOutput(returnType, language, 'empty'),
+      category: 'edge',
+      priority: 'high'
+    });
+    
+    // Test Case 3: Boundary Conditions
+    if (hasLoop || hasCondition) {
+      testCases.push({
+        name: `${functionName || 'Function'} - Boundary Values`,
+        description: "Test with boundary values (min/max/edge cases)",
+        input: inputSample.boundary,
+        expectedOutput: generateExpectedOutput(returnType, language, 'boundary'),
+        category: 'boundary',
+        priority: 'medium'
+      });
+    }
+      
+    // Test Case 4: Invalid Input
+    testCases.push({
+      name: `${functionName || 'Function'} - Invalid Input`,
+      description: "Test with invalid or unexpected input types",
+      input: inputSample.invalid,
+      expectedOutput: generateExpectedOutput(returnType, language, 'invalid'),
+      category: 'error',
+      priority: 'medium'
+    });
+
+    // Test Case 5: Large Input (if numbers or arrays detected)
+    if (hasNumbers || hasArray) {
+      testCases.push({
+        name: `${functionName || 'Function'} - Large Input`,
+        description: "Test with large input values",
+        input: hasArray ? '[1,2,3,4,5,6,7,8,9,10]' : '1000000',
+        expectedOutput: generateExpectedOutput(returnType, language, 'large'),
+        category: 'performance',
+        priority: 'low'
+      });
+    }
+    
+    // Error cases
+    if (hasString || hasArray || hasNumbers) {
+      testCases.push({
+        name: "Invalid Input Test",
+        description: "Test with invalid input format",
+        input: "invalid_input",
+        expectedOutput: "Should handle invalid input with appropriate error handling"
+      });
+    }
+    
+    // Type-specific tests
+    if (hasArray) {
+      testCases.push({
+        name: "Array Edge Case Test",
+        description: "Test with single element and multiple elements",
+        input: "[1]",
+        expectedOutput: "Should handle single element arrays correctly"
+      });
+    }
+    
+    if (hasString) {
+      testCases.push({
+        name: "String Edge Case Test",
+        description: "Test with special characters and whitespace",
+        input: "  test string with spaces  ",
+        expectedOutput: "Should handle string edge cases appropriately"
+      });
+    }
+  }
+  
+  // If no specific patterns detected, provide generic test cases
+  if (testCases.length === 0) {
+    testCases.push({
+      name: "Basic Functionality Test",
+      description: "Test basic functionality of the code",
+      input: "sample_input",
+      expectedOutput: "expected_output"
+    });
+  }
+  
+  return testCases;
 }

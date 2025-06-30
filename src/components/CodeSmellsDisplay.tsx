@@ -21,7 +21,7 @@ const CodeSmellsDisplay = ({ analysis }: CodeSmellsDisplayProps) => {
       case 'magic-numbers':
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       case 'unused-variables':
-        return <Trash2 className="h-4 w-4 text-gray-600" />;
+        return <Trash2 className="h-4 w-4 text-muted-foreground" />;
       case 'dead-code':
         return <Trash2 className="h-4 w-4 text-red-500" />;
       default:

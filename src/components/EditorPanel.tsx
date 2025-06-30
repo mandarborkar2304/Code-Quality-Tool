@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -17,15 +16,10 @@ interface EditorPanelProps {
   selectedLanguage: ProgrammingLanguage;
   setSelectedLanguage: (language: ProgrammingLanguage) => void;
   isAnalyzing: boolean;
-  onAnalyzeCode: () => void;
-  htmlCode: string;
-  setHtmlCode: (html: string) => void;
-  cssCode: string;
-  setCssCode: (css: string) => void;
-  jsCode: string;
-  setJsCode: (js: string) => void;
   onReset: () => void;
   analysisResults: CodeAnalysis | null;
+  onAnalyze: () => void; // Basic analysis function
+  onComprehensiveAnalyze: () => void; // Comprehensive analysis function
 }
 
 const EditorPanel = ({
@@ -34,97 +28,46 @@ const EditorPanel = ({
   selectedLanguage,
   setSelectedLanguage,
   isAnalyzing,
-  onAnalyzeCode,
-  htmlCode,
-  setHtmlCode,
-  cssCode,
-  setCssCode,
-  jsCode,
-  setJsCode,
   onReset,
-  analysisResults
+  analysisResults,
+  onAnalyze,
+  onComprehensiveAnalyze
 }: EditorPanelProps) => {
   const { toast } = useToast();
   const [hasLanguageMismatch, setHasLanguageMismatch] = useState(false);
   
-  // Create files array for tabs editor
+  // Simplified: Create single file for the selected language
   const [files, setFiles] = useState<CodeFile[]>([]);
-  const [activeFileId, setActiveFileId] = useState<string>('');
-  const [fileCounter, setFileCounter] = useState(1);
+  const [activeFileId, setActiveFileId] = useState<string>('main');
+  const [fileCounter, setFileCounter] = useState<number>(1);
   
-  // Setup initial files based on selected language
+  // Setup initial file based on selected language
   useEffect(() => {
-    let newFiles: CodeFile[] = [];
-    
-    if (selectedLanguage.id === 'web') {
-      // Create separate files for HTML, CSS, JS
-      newFiles = [
-        { id: 'html', name: 'index.html', language: programmingLanguages.find(lang => lang.id === 'html') || selectedLanguage, content: htmlCode },
-        { id: 'css', name: 'styles.css', language: programmingLanguages.find(lang => lang.id === 'css') || selectedLanguage, content: cssCode },
-        { id: 'js', name: 'script.js', language: programmingLanguages.find(lang => lang.id === 'javascript') || selectedLanguage, content: jsCode }
-      ];
-      setActiveFileId('html');
-    } else {
-      // Create a single file for the selected language
-      const fileName = `main${selectedLanguage.fileExtension}`;
-      newFiles = [
-        { id: 'main', name: fileName, language: selectedLanguage, content: code }
-      ];
-      setActiveFileId('main');
-    }
+    const fileName = `main${selectedLanguage.fileExtension}`;
+    const newFiles: CodeFile[] = [
+      { id: 'main', name: fileName, language: selectedLanguage, content: code }
+    ];
     
     setFiles(newFiles);
+    setActiveFileId('main');
   }, [selectedLanguage.id]);
   
-  // Update files when code changes
+  // Update file content when code changes
   useEffect(() => {
-    if (selectedLanguage.id !== 'web' && files.length > 0) {
-      // Update main file content
-      const mainFile = files.find(file => file.id === 'main');
-      if (mainFile && mainFile.content !== code) {
-        setFiles(prev => prev.map(file => 
-          file.id === 'main' ? { ...file, content: code } : file
-        ));
-      }
-    }
-  }, [code, selectedLanguage.id]);
+    setFiles(prev => prev.map(file => 
+      file.id === 'main' ? { ...file, content: code } : file
+    ));
+  }, [code]);
   
-  // Update html, css, js files when their content changes
-  useEffect(() => {
-    if (selectedLanguage.id === 'web') {
-      // Update html file content
-      setFiles(prev => prev.map(file => 
-        file.id === 'html' ? { ...file, content: htmlCode } :
-        file.id === 'css' ? { ...file, content: cssCode } :
-        file.id === 'js' ? { ...file, content: jsCode } : file
-      ));
-    }
-  }, [htmlCode, cssCode, jsCode, selectedLanguage.id]);
-  
-  // Handle file content changes
+  // Handle file content changes - simplified
   const handleFileContentChange = (fileId: string, newContent: string) => {
-    if (selectedLanguage.id === 'web') {
-      if (fileId === 'html') {
-        setHtmlCode(newContent);
-      } else if (fileId === 'css') {
-        setCssCode(newContent);
-      } else if (fileId === 'js') {
-        setJsCode(newContent);
-      } else {
-        // For additional files in web mode
-        setFiles(prev => prev.map(file => 
-          file.id === fileId ? { ...file, content: newContent } : file
-        ));
-      }
+    if (fileId === 'main') {
+      setCode(newContent);
     } else {
-      if (fileId === 'main') {
-        setCode(newContent);
-      } else {
-        // For additional files in non-web mode
-        setFiles(prev => prev.map(file => 
-          file.id === fileId ? { ...file, content: newContent } : file
-        ));
-      }
+      // For additional files 
+      setFiles(prev => prev.map(file => 
+        file.id === fileId ? { ...file, content: newContent } : file
+      ));
     }
   };
   
@@ -210,7 +153,7 @@ const EditorPanel = ({
       });
       return;
     }
-    onAnalyzeCode();
+    onComprehensiveAnalyze();
   };
 
   const handleLanguageChange = (language: ProgrammingLanguage) => {
@@ -222,8 +165,8 @@ const EditorPanel = ({
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center pb-4">
         <div className="flex items-center">
-          <h2 className="text-lg font-semibold flex items-center">
-            <Code className="h-5 w-5 mr-2 text-primary" />
+          <h2 className="text-lg font-semibold flex items-center text-orange-600">
+            <Code className="h-5 w-5 mr-2 text-orange-500" />
             Code Editor
           </h2>
         </div>
@@ -231,26 +174,32 @@ const EditorPanel = ({
           <div className="w-42">
             <LanguageSelector languages={programmingLanguages} selected={selectedLanguage} onSelect={handleLanguageChange} />
           </div>
-          <Button variant="outline" size="sm" className="gap-1 h-8" onClick={handleAddFile}>
+          <Button variant="outline" size="sm" className="gap-1 h-8 border-orange-300 text-orange-600 hover:bg-orange-50" onClick={handleAddFile}>
             <FilePlus className="h-3 w-3" />
             Add File
           </Button>
-          <Button variant="outline" size="sm" className="gap-1 h-8" onClick={onReset}>
+          <Button variant="outline" size="sm" className="gap-1 h-8 border-orange-300 text-orange-600 hover:bg-orange-50" onClick={onReset}>
             <RefreshCw className="h-3 w-3" />
             Reset
           </Button>
-          <Button variant="default" size="sm" disabled={isAnalyzing || hasLanguageMismatch} onClick={handleAnalyzeClick} className="gap-1 h-8 mx-[8px]">
+          <Button 
+            variant="default" 
+            size="sm" 
+            disabled={isAnalyzing || hasLanguageMismatch} 
+            onClick={onComprehensiveAnalyze} 
+            className="gap-1 h-8 mx-[8px] bg-orange-500 hover:bg-orange-600 text-white"
+          >
             {isAnalyzing ? <>
-                <span className="animate-spin h-3 w-3 border-2 border-t-transparent border-r-transparent rounded-full"></span>
+                <span className="animate-spin h-3 w-3 border-2 border-t-transparent border-r-transparent rounded-full border-white"></span>
                 Analyzing
               </> : <>
-                <Brain className="h-3 w-3" />
-                Analyze
+                <Brain className="h-3 w-3 text-white" />
+                Analyze Code Quality
               </>}
           </Button>
         </div>
       </div>
-      <Separator className="bg-border mb-4" />
+      <Separator className="bg-orange-200 mb-4" />
       <div className="flex-1 min-h-0 h-[calc(100vh-8rem)]">
         <TabsCodeEditor 
           files={files}

@@ -2,13 +2,30 @@ import { Handler } from "@netlify/functions";
 import Groq from "groq-sdk";
 
 const client = new Groq({
-  apiKey: process.env.VITE_GROQ_API_KEY!, 
+  apiKey: process.env.GROQ_API_KEY!, 
 });
 
 const handler: Handler = async (event) => {
+  // Handle CORS
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: "",
+    };
+  }
+
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
+      headers: corsHeaders,
       body: JSON.stringify({ message: "Method Not Allowed" }),
     };
   }
@@ -16,6 +33,14 @@ const handler: Handler = async (event) => {
   try {
     const body = JSON.parse(event.body || "{}");
     const { code, language = "Java" } = body;
+
+    if (!code) {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ message: "Code is required" }),
+      };
+    }
 
     const prompt = `
 You are a strict test case generation AI.
@@ -68,6 +93,7 @@ Example format:
     if (!match) {
       return {
         statusCode: 400,
+        headers: corsHeaders,
         body: JSON.stringify({ message: "No valid test cases generated." }),
       };
     }
@@ -75,12 +101,14 @@ Example format:
     const testCases = JSON.parse(match[0]);
     return {
       statusCode: 200,
+      headers: corsHeaders,
       body: JSON.stringify({ testCases }),
     };
   } catch (error) {
     console.error("Groq test case error:", error);
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ message: "Internal Server Error" }),
     };
   }

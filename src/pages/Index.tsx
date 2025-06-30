@@ -20,7 +20,7 @@ const Index = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {/* Feature 1 */}
-              <div className="bg-black/20 border border-border/50 rounded-lg p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
+              <div className="backdrop-card bg-black/20 border border-border/50 rounded-lg p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
                 <div className="rounded-full bg-primary/10 w-12 h-12 flex items-center justify-center mb-4">
                   <Brain className="w-6 h-6 text-primary" />
                 </div>
@@ -29,7 +29,7 @@ const Index = () => {
               </div>
               
               {/* Feature 2 */}
-              <div className="bg-black/20 border border-border/50 rounded-lg p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
+              <div className="backdrop-card bg-black/20 border border-border/50 rounded-lg p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
                 <div className="rounded-full bg-primary/10 w-12 h-12 flex items-center justify-center mb-4">
                   <Code className="w-6 h-6 text-primary" />
                 </div>
@@ -40,7 +40,7 @@ const Index = () => {
               </div>
               
               {/* Feature 3 */}
-              <div className="bg-black/20 border border-border/50 rounded-lg p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
+              <div className="backdrop-card bg-black/20 border border-border/50 rounded-lg p-6 hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(124,58,237,0.15)]">
                 <div className="rounded-full bg-primary/10 w-12 h-12 flex items-center justify-center mb-4">
                   <Zap className="w-6 h-6 text-primary" />
                 </div>

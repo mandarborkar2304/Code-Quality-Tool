@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -16,9 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OverviewSection from "./OverviewSection";
 import ComplexityDisplay from "./ComplexityDisplay";
 import CodeSmellsDisplay from "./CodeSmellsDisplay";
-import AreaOfImprovements from "./AreaOfImprovements";
-import AIRecommendations from "./AIRecommendations";
 import TestCaseDisplay from "./TestCaseDisplay";
+import EnhancedAIInsights from "./EnhancedAIInsights";
+import SyntaxErrorsDisplay from "./SyntaxErrorsDisplay";
 import { Badge } from "@/components/ui/badge";
 
 interface CodeAnalysisDisplayProps {
@@ -33,6 +33,16 @@ const CodeAnalysisDisplay = ({
   onApplyCorrection,
 }: CodeAnalysisDisplayProps) => {
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Add analysisTimestamp to track when analysis was last run - use a stable reference
+  const [analysisTimestamp, setAnalysisTimestamp] = useState<number | undefined>();
+  
+  // Update timestamp when analysis changes
+  React.useEffect(() => {
+    if (analysis) {
+      setAnalysisTimestamp(Date.now());
+    }
+  }, [analysis?.originalCode, analysis?.cyclomaticComplexity, analysis?.violations]);
 
   if (!analysis) {
     return (
@@ -66,10 +76,19 @@ const CodeAnalysisDisplay = ({
   return (
     <div className="h-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview" className="text-xs">
             <BarChart3 className="h-3 w-3 mr-1" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="syntax" className="text-xs">
+            <Code2 className="h-3 w-3 mr-1" />
+            Syntax
+            {analysis.syntaxErrors && analysis.syntaxErrors.length > 0 && (
+              <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-xs">
+                {analysis.syntaxErrors.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="violations" className="text-xs">
             <AlertTriangle className="h-3 w-3 mr-1" />
@@ -93,9 +112,19 @@ const CodeAnalysisDisplay = ({
           </TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 mt-4 overflow-auto">
+        <div className="flex-1 mt-4 overflow-auto custom-scrollbar smooth-scroll">
           <TabsContent value="overview" className="mt-0">
             <OverviewSection analysis={analysis} />
+          </TabsContent>
+
+          <TabsContent value="syntax" className="mt-0">
+            <SyntaxErrorsDisplay 
+              analysis={analysis}
+              onApplyFix={(lineNumber, fix) => {
+                // Handle syntax error fixes - could integrate with code editor
+                console.log(`Apply fix at line ${lineNumber}: ${fix}`);
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="violations" className="mt-0">
@@ -172,7 +201,12 @@ const CodeAnalysisDisplay = ({
 
           <TabsContent value="complexity" className="mt-0">
             {analysis.complexityAnalysis ? (
-              <ComplexityDisplay analysis={analysis.complexityAnalysis} />
+              <ComplexityDisplay 
+                analysis={analysis.complexityAnalysis}
+                code={analysis.originalCode}
+                language={language}
+                analysisTimestamp={analysisTimestamp}
+              />
             ) : (
               <Card>
                 <CardContent className="flex items-center justify-center h-32">
@@ -204,33 +238,12 @@ const CodeAnalysisDisplay = ({
             />
           </TabsContent>
 
-          <TabsContent value="ai-insights" className="mt-0 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-yellow-600" />
-                  Area of Improvements
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-60 overflow-y-auto">
-                <AreaOfImprovements analysis={analysis} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-purple-600" />
-                  AI Recommendations
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-60 overflow-y-auto">
-                <AIRecommendations
-                  analysis={analysis}
-                  language={language}
-                  onApplyCorrection={handleApplyCorrection}
-                />
-              </CardContent>
-            </Card>
+          <TabsContent value="ai-insights" className="mt-0">
+            <EnhancedAIInsights
+              analysis={analysis}
+              language={language}
+              code={analysis.originalCode}
+            />
           </TabsContent>
         </div>
       </Tabs>

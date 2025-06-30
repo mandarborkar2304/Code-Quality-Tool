@@ -11,12 +11,12 @@ interface AnalysisPanelProps {
 
 const AnalysisPanel = ({ analysis, language, onApplyCorrection }: AnalysisPanelProps) => {
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Code Analysis Results</CardTitle>
+    <Card className="h-full flex flex-col border-orange-200 bg-white dark:bg-gray-800 dark:border-gray-700">
+      <CardHeader className="pb-3 border-b border-orange-100 flex-shrink-0">
+        <CardTitle className="text-lg text-foreground font-semibold">Code Analysis Results</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 p-0">
-        <div className="h-full px-6 pb-6">
+      <CardContent className="flex-1 p-0 min-h-0 overflow-hidden">
+        <div className="h-full analysis-panel-scroll custom-scrollbar px-6 pb-6 max-w-full">
           <CodeAnalysisDisplay 
             analysis={analysis} 
             language={language}

@@ -2,6 +2,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ProgrammingLanguage } from "@/types";
 import { FileCode, FileText, AlertCircle } from "lucide-react";
+import { 
+  ensureCursorVisible, 
+  createDebouncedScrollHandler,
+  scrollToTop,
+  scrollToBottom 
+} from "@/utils/editorScrollUtils";
 
 interface CodeEditorProps {
   code: string;
@@ -87,12 +93,15 @@ const EnhancedCodeEditor: React.FC<EnhancedCodeEditorProps> = ({ code, onChange,
     }
   }, [code]);
   
-  // Handle tab key for indentation
+  // Handle keyboard shortcuts and special keys
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const editor = e.currentTarget;
+    
+    // Tab key for indentation
     if (e.key === 'Tab') {
       e.preventDefault();
-      const start = e.currentTarget.selectionStart;
-      const end = e.currentTarget.selectionEnd;
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
       
       // Insert tab at cursor position
       const newValue = code.substring(0, start) + '  ' + code.substring(end);
@@ -102,6 +111,31 @@ const EnhancedCodeEditor: React.FC<EnhancedCodeEditorProps> = ({ code, onChange,
       setTimeout(() => {
         if (editorRef.current) {
           editorRef.current.selectionStart = editorRef.current.selectionEnd = start + 2;
+          ensureCursorVisible(editorRef.current);
+        }
+      }, 0);
+    }
+    
+    // Ctrl+Home: Go to top
+    else if (e.ctrlKey && e.key === 'Home') {
+      e.preventDefault();
+      scrollToTop(editor);
+      editor.setSelectionRange(0, 0);
+    }
+    
+    // Ctrl+End: Go to bottom
+    else if (e.ctrlKey && e.key === 'End') {
+      e.preventDefault();
+      scrollToBottom(editor);
+      const lastPosition = code.length;
+      editor.setSelectionRange(lastPosition, lastPosition);
+    }
+    
+    // Ensure cursor stays visible after navigation
+    else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(e.key)) {
+      setTimeout(() => {
+        if (editorRef.current) {
+          ensureCursorVisible(editorRef.current);
         }
       }, 0);
     }
@@ -137,20 +171,24 @@ const EnhancedCodeEditor: React.FC<EnhancedCodeEditorProps> = ({ code, onChange,
         </div>
         
         {/* Code editor */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 overflow-hidden">
           <textarea
             ref={editorRef}
             value={code}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             spellCheck={false}
-            className="code-editor-container p-4 bg-code text-code-foreground focus:outline-none scrollbar-thin rounded-none w-full h-full font-mono"
+            className="code-editor-container code-editor-enhanced p-4 bg-code text-code-foreground focus:outline-none w-full h-full font-mono resize-none"
             style={{ 
               resize: 'none',
               tabSize: 2,
               lineHeight: 1.5,
-              whiteSpace: 'pre-wrap',
-              overflowY: 'hidden'
+              whiteSpace: 'pre',
+              overflowX: 'auto',
+              overflowY: 'auto',
+              wordWrap: 'break-word',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent'
             }}
           />
         </div>
@@ -304,7 +342,7 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
             {/* HTML editor */}
             <textarea 
               ref={htmlEditorRef}
-              className="code-editor-container p-4 bg-code text-code-foreground focus:outline-none scrollbar-thin flex-1" 
+              className="code-editor-container code-editor-enhanced p-4 bg-code text-code-foreground focus:outline-none flex-1 resize-none" 
               value={htmlInstructions} 
               onChange={e => onChangeHtml(e.target.value)} 
               onKeyDown={e => handleKeyDown(e, htmlInstructions, onChangeHtml)}
@@ -313,8 +351,13 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
                 resize: 'none',
                 tabSize: 2,
                 lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-                fontFamily: "'Fira Code', 'Consolas', monospace"
+                whiteSpace: 'pre',
+                fontFamily: "'Fira Code', 'Consolas', monospace",
+                overflowX: 'auto',
+                overflowY: 'auto',
+                wordWrap: 'break-word',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent'
               }}
             />
           </div>
@@ -324,7 +367,7 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
         <div className="h-1/3 min-h-0 border-t border-border">
           <div className="flex items-center justify-between px-4 py-2 bg-code border-b border-border">
             <div className="flex items-center">
-              <FileCode className="w-4 h-4 mr-2 text-blue-400" />
+              <FileCode className="w-4 h-4 mr-2 text-code-blue" />
               <span className="text-sm font-medium text-muted-foreground">
                 CSS
               </span>
@@ -353,7 +396,7 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
             {/* CSS editor */}
             <textarea 
               ref={cssEditorRef}
-              className="code-editor-container p-4 bg-code text-code-foreground focus:outline-none scrollbar-thin flex-1" 
+              className="code-editor-container code-editor-enhanced p-4 bg-code text-code-foreground focus:outline-none flex-1 resize-none" 
               value={cssInstructions} 
               onChange={e => onChangeCss(e.target.value)} 
               onKeyDown={e => handleKeyDown(e, cssInstructions, onChangeCss)}
@@ -362,8 +405,13 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
                 resize: 'none',
                 tabSize: 2,
                 lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-                fontFamily: "'Fira Code', 'Consolas', monospace"
+                whiteSpace: 'pre',
+                fontFamily: "'Fira Code', 'Consolas', monospace",
+                overflowX: 'auto',
+                overflowY: 'auto',
+                wordWrap: 'break-word',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent'
               }}
             />
           </div>
@@ -373,7 +421,7 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
         <div className="h-1/3 min-h-0 border-t border-border">
           <div className="flex items-center justify-between px-4 py-2 bg-code border-b border-border">
             <div className="flex items-center">
-              <AlertCircle className="w-4 h-4 mr-2 text-yellow-400" />
+              <AlertCircle className="w-4 h-4 mr-2 text-code-yellow" />
               <span className="text-sm font-medium text-muted-foreground">
                 JavaScript
               </span>
@@ -402,7 +450,7 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
             {/* JS editor */}
             <textarea 
               ref={jsEditorRef}
-              className="code-editor-container p-4 bg-code text-code-foreground focus:outline-none scrollbar-thin flex-1" 
+              className="code-editor-container code-editor-enhanced p-4 bg-code text-code-foreground focus:outline-none flex-1 resize-none" 
               value={jsInstructions} 
               onChange={e => onChangeJs(e.target.value)} 
               onKeyDown={e => handleKeyDown(e, jsInstructions, onChangeJs)}
@@ -411,8 +459,13 @@ const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
                 resize: 'none',
                 tabSize: 2,
                 lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-                fontFamily: "'Fira Code', 'Consolas', monospace"
+                whiteSpace: 'pre',
+                fontFamily: "'Fira Code', 'Consolas', monospace",
+                overflowX: 'auto',
+                overflowY: 'auto',
+                wordWrap: 'break-word',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent'
               }}
             />
           </div>

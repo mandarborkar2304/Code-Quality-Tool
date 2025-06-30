@@ -5,6 +5,57 @@
 
 @layer base {
   :root {
+    /* Light mode colors */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    
+    --primary: 24 100% 53%;
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 24 100% 53%;
+    
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 24 100% 53%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 96.1%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 89.8%;
+    --sidebar-ring: 24 100% 53%;
+    
+    --code: 0 0% 98%;
+    --code-foreground: 0 0% 9%;
+    --code-red: 0 72% 51%;
+    --code-yellow: 45 93% 47%;
+    --code-green: 142 76% 36%;
+    --code-blue: 221 83% 53%;
+    --code-purple: 262 83% 58%;
+  }
+
+  .dark {
+    /* Dark mode colors */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     
@@ -14,43 +65,41 @@
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
     
-    --primary: 267 84% 64%;
+    --primary: 24 100% 53%;
     --primary-foreground: 0 0% 98%;
     
-    --secondary: 240 7% 15%;
+    --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     
-    --muted: 240 5% 12%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
     
-    --accent: 240 5% 15%;
+    --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
     
-    --destructive: 0 63% 31%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 240 5% 15%;
-    --input: 240 5% 15%;
-    --ring: 267 84% 64%;
-    
-    --radius: 0.5rem;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 24 100% 53%;
 
     --sidebar-background: 240 10% 3.9%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 267 84% 64%;
+    --sidebar-primary: 24 100% 53%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 5% 15%;
+    --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 5% 15%;
-    --sidebar-ring: 267 84% 64%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 24 100% 53%;
     
-    --code: rgb(30, 30, 30);
-    --code-foreground: #e6e6e6;
-    --code-red: 0 100% 50%;
-    --code-yellow: 60 100% 50%;
-    --code-green: 120 100% 50%;
-    --code-blue: 210 100% 60%;
-    --code-purple: 270 100% 60%;
+    --code: 222.2 84% 4.9%;
+    --code-foreground: 210 40% 98%;
+    --code-red: 0 72% 51%;
+    --code-yellow: 45 93% 47%;
+    --code-green: 142 76% 36%;
+    --code-blue: 221 83% 53%;
+    --code-purple: 262 83% 58%;
   }
 }
 
@@ -109,6 +158,367 @@
   .code-editor-container {
     @apply resize-none w-full h-full;
     font-family: 'Fira Code', 'Consolas', monospace;
+  }
+
+  /* Enhanced scrollbar for code editor */
+  .code-editor-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .code-editor-container::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .code-editor-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+  }
+
+  .code-editor-container::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.6);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .code-editor-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.8);
+  }
+
+  .code-editor-container::-webkit-scrollbar-thumb:active {
+    background: rgba(155, 155, 155, 1);
+  }
+
+  .dark .code-editor-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .code-editor-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .code-editor-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .dark .code-editor-container::-webkit-scrollbar-thumb:active {  
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  /* Custom scrollbar for analysis panels */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.5);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.7);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  
+  .dark .custom-scrollbar {
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+  
+  .dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Enhanced scrollbar for tabs */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(155, 155, 155, 0.4) transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.4);
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.6);
+  }
+
+  /* Smooth scrolling for containers */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+  
+  /* Analysis panel scrolling */
+  .analysis-panel-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(100vh - 12rem);
+  }
+  
+  .analysis-panel-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .analysis-panel-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+  }
+  
+  .analysis-panel-scroll::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.4);
+    border-radius: 3px;
+  }
+  
+  .analysis-panel-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.6);
+  }
+  
+  .dark .analysis-panel-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .dark .analysis-panel-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  .dark .analysis-panel-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Scrollbar with opacity transitions */
+  .scrollbar-fade {
+    --scrollbar-opacity: 0.3;
+    transition: all 0.3s ease;
+  }
+  
+  .scrollbar-fade::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, var(--scrollbar-opacity, 0.3));
+    transition: background-color 0.3s ease;
+  }
+  
+  .scrollbar-fade:hover::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.7);
+  }
+  
+  .dark .scrollbar-fade::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, var(--scrollbar-opacity, 0.3));
+  }
+  
+  .dark .scrollbar-fade:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Enhanced scrolling physics */
+  .smooth-scroll-enhanced {
+    scroll-behavior: smooth;
+    scroll-padding-top: 2rem;
+    scroll-padding-bottom: 2rem;
+  }
+
+  /* For webkit browsers - enhanced scrolling */
+  @media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .smooth-scroll-enhanced {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Scrollbar styling for code blocks in analysis */
+  .analysis-code-block {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 6px;
+  }
+  
+  .analysis-code-block::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  .analysis-code-block::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 2px;
+  }
+  
+  .analysis-code-block::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.3);
+    border-radius: 2px;
+  }
+  
+  .analysis-code-block::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.5);
+  }
+  
+  .dark .analysis-code-block::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .dark .analysis-code-block::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .dark .analysis-code-block::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  /* Horizontal scrolling for long content */
+  .horizontal-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+  
+  .horizontal-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  .horizontal-scroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+  }
+  
+  .horizontal-scroll::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.4);
+    border-radius: 3px;
+  }
+  
+  .horizontal-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.6);
+  }
+
+  .dark .code-editor-container::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  /* Enhanced code editor specific styling */
+  .code-editor-enhanced {
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+    
+    /* Better text rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    
+    /* Improve selection behavior */
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    
+    /* Better cursor */
+    cursor: text;
+    
+    /* Word spacing for better readability */
+    word-spacing: normal;
+    letter-spacing: 0.05ch;
+    
+    /* Better tab handling */
+    tab-size: 2;
+    -moz-tab-size: 2;
+    -o-tab-size: 2;
+  }
+
+  .code-editor-enhanced:focus {
+    outline: 2px solid rgba(124, 58, 237, 0.5);
+    outline-offset: -2px;
+  }
+
+  /* Better horizontal scrolling for long lines */
+  .code-editor-enhanced {
+    overflow-wrap: normal;
+    white-space: pre;
+    word-break: normal;
+  }
+
+  /* Custom scrollbar for Firefox */
+  @supports (scrollbar-width: thin) {
+    .code-editor-enhanced {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(155, 155, 155, 0.6) transparent;
+    }
+    
+    .dark .code-editor-enhanced {
+      scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+    }
+  }
+
+  /* Additional scroll enhancements */
+  .code-editor-enhanced {
+    /* Smooth momentum scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    
+    /* Better scroll behavior */
+    overscroll-behavior: contain;
+    
+    /* Prevent horizontal scrolling from affecting parent */
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+  }
+
+  /* Keyboard navigation enhancements */
+  .code-editor-enhanced:focus {
+    /* Ensure focused editor has proper scrolling */
+    scroll-padding: 1rem;
+  }
+
+  /* Line height and spacing optimizations for readability */
+  .code-editor-enhanced {
+    /* Optimize for long lines */
+    min-height: 0;
+    
+    /* Better performance on scroll */
+    will-change: scroll-position;
+    
+    /* Ensure content doesn't get cut off */
+    padding-right: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  /* Responsive scrollbar sizing */
+  @media (max-width: 768px) {
+    .code-editor-container::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .code-editor-container::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
   }
   
   /* Enhanced resizable panel styling */
@@ -189,5 +599,50 @@
   
   .hero-glow {
     box-shadow: 0 0 30px 5px rgba(124, 58, 237, 0.3);
+  }
+
+  /* Vanta.js Backdrop Styling */
+  #vanta-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #0f0f23 100%);
+  }
+
+  /* Ensure main content is above backdrop */
+  #root {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.95);
+    min-height: 100vh;
+  }
+
+  /* Dark mode adjustments for backdrop */
+  .dark #root {
+    background: rgba(15, 15, 35, 0.95);
+  }
+
+  /* Vanta backdrop responsive adjustments */
+  @media (max-width: 768px) {
+    #vanta-backdrop {
+      /* Reduce animation intensity on mobile for better performance */
+      opacity: 0.7;
+    }
+  }
+
+  /* Add subtle transparency to cards to show backdrop effect */
+  .backdrop-card {
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .backdrop-card {
+    background: rgba(15, 15, 35, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 }
