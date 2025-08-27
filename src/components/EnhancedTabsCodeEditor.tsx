@@ -12,7 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import CoreMonacoEditor from "./CoreMonacoEditor";
+import { CodeEditor } from "./CodeEditor";
 import { TestCase, generateTestCases, simulateExecution } from "@/pages/api/groqTestAPI";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -519,10 +519,11 @@ const EnhancedTabsCodeEditor: React.FC<EnhancedTabsCodeEditorProps> = ({
         <div className="flex-1 overflow-hidden">
           <TabsContent value="code" className="h-full m-0 p-0 data-[state=active]:flex data-[state=inactive]:hidden">
             <div className="w-full h-full">
-              <CoreMonacoEditor
-                value={activeFile.content}
-                language={activeFile.language.id}
+              <CodeEditor
+                code={activeFile.content}
+                language={activeFile.language}
                 onChange={(newContent) => onFileContentChange(activeFile.id, newContent)}
+                onSyntaxErrorsChange={syntaxErrors[activeFile.id] ? [syntaxErrors[activeFile.id]] : []}
               />
             </div>
           </TabsContent>

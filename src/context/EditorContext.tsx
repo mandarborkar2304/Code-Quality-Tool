@@ -93,7 +93,7 @@ export const EditorProvider: React.FC<EditorProviderProps> = ({ children }) => {
         }
         return syntaxResult;
       },
-      { errors: [], isValid: false, totalErrors: 0, totalWarnings: 0 } // Fallback value
+      { errors: [], warnings: [], suggestions: [], hasErrors: false, hasWarnings: false, analysisTime: 0, aiAnalysisUsed: false } // Fallback value
     );
     
     if (result) {

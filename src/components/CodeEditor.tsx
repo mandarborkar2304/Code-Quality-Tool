@@ -2,33 +2,29 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ProgrammingLanguage } from "@/types";
 import { FileCode, FileText, AlertCircle } from "lucide-react";
-import SimpleCodeEditor, { SimpleCodeEditorRef } from "@/components/SimpleCodeEditor";
+
 
 import { SyntaxAnalysisResult } from "@/utils/syntaxAnalyzer";
+import MonacoEditor from "@monaco-editor/react";
 
 interface CodeEditorProps {
   code: string;
   language: ProgrammingLanguage;
   onChange: (value: string) => void;
   onSyntaxErrorsChange?: SyntaxAnalysisResult[];
-  webContent?: {
-    html: string;
-    css: string;
-    js: string;
-    onChangeHtml: (value: string) => void;
-    onChangeCss: (value: string) => void;
-    onChangeJs: (value: string) => void;
-  };
+  options?: any;
+  hasBorderOutline?: boolean;
 }
 
-const CodeEditor: React.FC<CodeEditorProps> = ({
+export const CodeEditor: React.FC<CodeEditorProps> = ({
   code,
   language,
   onChange,
-  onSyntaxErrorsChange,
-  webContent
+  // onSyntaxErrorsChange is removed since it's not used
+  options,
+  hasBorderOutline = false,
 }) => {
-  const editorRef = useRef<SimpleCodeEditorRef>(null);
+  const editorRef = useRef<any>(null);
 
   // Generate default placeholder instructions based on language
   const getDefaultInstructions = () => {
@@ -55,12 +51,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   // Use instructions if code is empty
   const displayedCode = code.trim() === "" ? getDefaultInstructions() : code;
   
-  if (language.id === "web" && webContent) {
-    return <WebCodeEditor html={webContent.html} css={webContent.css} js={webContent.js} onChangeHtml={webContent.onChangeHtml} onChangeCss={webContent.onChangeCss} onChangeJs={webContent.onChangeJs} />;
-  }
+
   
   return (
-    <div className="relative w-full h-full rounded-md bg-code overflow-hidden border border-border">
+    <div className={`relative w-full h-full rounded-md bg-code overflow-hidden border ${hasBorderOutline ? 'border-orange-500' : 'border-border'}`}>
       <div className="flex items-center justify-between px-4 py-2 bg-code border-b border-border">
         <div className="flex items-center">
           <span className="text-sm font-medium text-muted-foreground">
@@ -76,76 +70,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           <div className="w-3 h-3 rounded-full bg-code-green"></div>
         </div>
       </div>
-      <SimpleCodeEditor
-        ref={editorRef}
-        code={displayedCode}
+      <MonacoEditor
+        onMount={(editor) => (editorRef.current = editor)}
+        value={displayedCode}
         language={language.id}
-        onCodeChange={onChange}
+        onChange={(value) => onChange(value || "")}
         height="calc(100% - 2.5rem)"
         theme="vs-dark"
-        onSyntaxErrorsChange={onSyntaxErrorsChange}
+        options={options}
       />
-    </div>
-  );
-};
-
-interface WebCodeEditorProps {
-  html: string;
-  css: string;
-  js: string;
-  onChangeHtml: (value: string) => void;
-  onChangeCss: (value: string) => void;
-  onChangeJs: (value: string) => void;
-}
-
-const WebCodeEditor: React.FC<WebCodeEditorProps> = ({
-  html,
-  css,
-  js,
-  onChangeHtml,
-  onChangeCss,
-  onChangeJs
-}) => {
-
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 mb-2">
-        <h3 className="text-lg font-semibold mb-1">HTML</h3>
-        <div className="relative w-full h-[calc(33%-0.5rem)] rounded-md bg-code overflow-hidden border border-border">
-          <SimpleCodeEditor
-            code={html}
-            language="html"
-            onCodeChange={onChangeHtml}
-            height="100%"
-            theme="vs-dark"
-          />
-        </div>
-      </div>
-      <div className="flex-1 mb-2">
-        <h3 className="text-lg font-semibold mb-1">CSS</h3>
-        <div className="relative w-full h-[calc(33%-0.5rem)] rounded-md bg-code overflow-hidden border border-border">
-          <SimpleCodeEditor
-            code={css}
-            language="css"
-            onCodeChange={onChangeCss}
-            height="100%"
-            theme="vs-dark"
-          />
-        </div>
-      </div>
-      <div className="flex-1">
-        <h3 className="text-lg font-semibold mb-1">JavaScript</h3>
-        <div className="relative w-full h-[calc(33%-0.5rem)] rounded-md bg-code overflow-hidden border border-border">
-          <SimpleCodeEditor
-            code={js}
-            language="javascript"
-            onCodeChange={onChangeJs}
-            height="100%"
-            theme="vs-dark"
-          />
-        </div>
-      </div>
     </div>
   );
 };

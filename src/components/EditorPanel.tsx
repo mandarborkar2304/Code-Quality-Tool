@@ -201,13 +201,14 @@ const EditorPanel = ({
       </div>
       <Separator className="bg-orange-200 mb-4" />
       <div className="flex-1 min-h-0 h-[calc(100vh-8rem)]">
-        <TabsCodeEditor 
-          files={files}
-          activeFileId={activeFileId}
-          onActiveFileChange={setActiveFileId}
-          onFileContentChange={handleFileContentChange}
-          onRemoveFile={handleRemoveFile}
-        />
+        <TabsCodeEditor
+        files={files}
+        activeFileId={activeFileId}
+        onActiveFileChange={setActiveFileId}
+        onFileContentChange={handleFileContentChange}
+        onRemoveFile={handleRemoveFile}
+        hasBorderOutline={isAnalyzing}
+      />
       </div>
     </div>
   );

@@ -29,6 +29,7 @@ export interface CodeViolations {
 
 // Import new complexity types
 import { ComplexityAnalysis, CodeSmellsAnalysis } from './complexityTypes';
+import { SyntaxError } from '../utils/syntaxAnalyzer';
 
 export interface CodeAnalysis {
   originalCode: string;
@@ -49,7 +50,7 @@ export interface CodeAnalysis {
   codeSmells?: CodeSmellsAnalysis;
   
   // AI-enhanced analysis results
-  syntaxErrors?: string[]; // AI-detected syntax errors
+  syntaxErrors?: SyntaxError[]; // AI-detected syntax errors
   securityIssues?: string[]; // AI-detected security issues  
   performanceIssues?: string[]; // AI-detected performance issues
   

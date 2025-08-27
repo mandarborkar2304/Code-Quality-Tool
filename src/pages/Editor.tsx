@@ -10,8 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import { fetchComprehensiveAnalysis } from "./api/groqComprehensiveAnalysisAPI";
-import SimpleCodeEditor, { SimpleCodeEditorRef } from "@/components/SimpleCodeEditor";
-import CoreMonacoEditor from "@/components/CoreMonacoEditor";
+
+import { CodeEditor } from "@/components/CodeEditor";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { Button } from "@/components/ui/button";
 import { Brain, RefreshCw, AlertCircle } from "lucide-react";
@@ -57,13 +57,10 @@ const Editor = () => {
   const [syntaxErrors, setSyntaxErrors] = useState<SyntaxAnalysisResult[]>([]);
   const [testCases, setTestCases] = useState<any[]>([]); // Assuming 'any[]' for now, adjust if 'TestCase' type is available
   const lastDetectedLang = useRef(selectedLanguage.id);
-  const editorRef = useRef<SimpleCodeEditorRef>(null);
 
-  const handleSyntaxErrorClick = (lineNumber: number, column?: number) => {
-    if (editorRef.current) {
-      editorRef.current.goToLine(lineNumber);
-    }
-  };
+
+
+
 
   const handleReset = () => {
     setCode("");
@@ -394,16 +391,12 @@ const Editor = () => {
                     <TabsTrigger value="test-cases">Test Cases</TabsTrigger>
                   </TabsList>
                   <TabsContent value="code" className="mt-0 p-0 flex flex-col flex-1 min-h-0 data-[state=inactive]:hidden overflow-hidden">
-                    <CoreMonacoEditor
-                       value={code}
-                       onChange={setCode}
-                       onSyntaxErrorsChange={syntaxErrors}
-                       language={selectedLanguage.id}
-                       ref={editorRef}
-                     options={{
-                       readOnly: false,
-                     }}
-                   />
+        <CodeEditor
+          code={code}
+          onChange={setCode}
+          language={selectedLanguage}
+          // The 'onSyntaxErrorsChange' prop was removed as per instruction.
+        />
                   </TabsContent>
                   <TabsContent value="test-cases" className="mt-0 p-0 flex flex-col flex-1 min-h-0 data-[state=inactive]:hidden overflow-hidden">
                     <TestCaseDisplay
@@ -424,7 +417,7 @@ const Editor = () => {
               language={selectedLanguage.id}
               onApplyCorrection={(correctedCode) => setCode(correctedCode)}
               isAnalyzing={isRecheckingSyntax}
-              onSyntaxErrorClick={handleSyntaxErrorClick}
+
               syntaxErrors={syntaxErrors.flatMap(result => result.errors)} // Pass the errors array
               onReanalyze={handleRecheckSyntax}
             />

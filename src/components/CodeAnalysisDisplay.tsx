@@ -26,7 +26,7 @@ interface CodeAnalysisDisplayProps {
   language: string;
   onApplyCorrection: (code: string) => void;
   syntaxErrors?: { line: number; message: string; column?: number }[];
-  onSyntaxErrorClick: (lineNumber: number, column?: number) => void;
+  onSyntaxErrorClick?: (lineNumber: number, column?: number) => void;
   isAnalyzing: boolean;
   onReanalyze: () => Promise<void>;
 }
@@ -42,16 +42,19 @@ const CodeAnalysisDisplay = ({
   onReanalyze,
 }: CodeAnalysisDisplayProps) => {
   const [activeTab, setActiveTab] = useState("overview");
-  
+
   // Add analysisTimestamp to track when analysis was last run - use a stable reference
   const [analysisTimestamp, setAnalysisTimestamp] = useState<number | undefined>();
-  
-  // Update timestamp when analysis changes
+
+  // Update timestamp when analysis changes and switch to syntax tab if there are errors
   React.useEffect(() => {
     if (analysis) {
       setAnalysisTimestamp(Date.now());
+      if (analysis.syntaxErrors && analysis.syntaxErrors.length > 0) {
+        setActiveTab("syntax");
+      }
     }
-  }, [analysis?.originalCode, analysis?.cyclomaticComplexity, analysis?.violations]);
+  }, [analysis?.originalCode, analysis?.cyclomaticComplexity, analysis?.violations, analysis?.syntaxErrors]);
 
   if (!analysis) {
     return (
@@ -116,7 +119,7 @@ const CodeAnalysisDisplay = ({
             <SyntaxErrorsDisplay 
               analysis={{
                 ...analysis,
-                syntaxErrors: syntaxErrors.map(e => `Line ${e.line}: ${e.message}`)
+                syntaxErrors: syntaxErrors.map(e => ({ ...e, severity: 'error', type: 'syntax', column: e.column || 1 }))
               }}
               onApplyFix={(lineNumber, fix) => {
                 // Handle syntax error fixes - could integrate with code editor

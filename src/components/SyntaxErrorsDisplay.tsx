@@ -6,12 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CodeAnalysis } from "@/types";
 
+interface SyntaxError {
+  line: number;
+  column: number;
+  message: string;
+  severity: 'error' | 'warning' | 'info' | 'suggestion';
+  quickFix?: string;
+}
+
 interface SyntaxErrorsDisplayProps {
   analysis: CodeAnalysis;
   onApplyFix?: (lineNumber: number, fix: string) => void;
+  onErrorClick?: (error: { line: number; column?: number }) => void;
+  onReanalyze?: () => void;
+  isAnalyzing?: boolean;
 }
 
-const SyntaxErrorsDisplay = ({ analysis, onApplyFix }: SyntaxErrorsDisplayProps) => {
+const SyntaxErrorsDisplay = ({ analysis, onApplyFix, onErrorClick }: SyntaxErrorsDisplayProps) => {
   const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
     errors: true,
     warnings: false,
@@ -30,28 +41,20 @@ const SyntaxErrorsDisplay = ({ analysis, onApplyFix }: SyntaxErrorsDisplayProps)
   
   // Categorize syntax issues
   const categorizedIssues = {
-    errors: syntaxErrors.filter(error => error.toLowerCase().includes('error')),
-    warnings: syntaxErrors.filter(error => 
-      error.toLowerCase().includes('warning') || 
-      error.toLowerCase().includes('potential') ||
-      error.toLowerCase().includes('consider')
-    ),
-    suggestions: syntaxErrors.filter(error => 
-      error.toLowerCase().includes('suggestion') || 
-      error.toLowerCase().includes('style') ||
-      error.toLowerCase().includes('prefer')
-    )
+    errors: syntaxErrors.filter(error => error.severity === 'error'),
+    warnings: syntaxErrors.filter(error => error.severity === 'warning'),
+    suggestions: syntaxErrors.filter(error => error.severity === 'info')
   };
 
-  // Extract line numbers and messages from error strings
-  const parseErrorString = (errorStr: string) => {
-    const lineMatch = errorStr.match(/Line (\d+)/);
-    const lineNumber = lineMatch ? parseInt(lineMatch[1]) : null;
-    const message = errorStr.replace(/Line \d+[:\-\s]*/, '').trim();
-    const severity = errorStr.toLowerCase().includes('error') ? 'error' :
-                    errorStr.toLowerCase().includes('warning') ? 'warning' : 'info';
-    return { lineNumber, message, severity };
-  };
+  // No longer need parseErrorString as we have structured SyntaxError objects
+  // const parseErrorString = (errorStr: string) => {
+  //   const lineMatch = errorStr.match(/Line (\d+)/);
+  //   const lineNumber = lineMatch ? parseInt(lineMatch[1]) : null;
+  //   const message = errorStr.replace(/Line \d+[:\-\s]*/, '').trim();
+  //   const severity = errorStr.toLowerCase().includes('error') ? 'error' :
+  //                   errorStr.toLowerCase().includes('warning') ? 'warning' : 'info';
+  //   return { lineNumber, message, severity };
+  // };
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
@@ -77,7 +80,7 @@ const SyntaxErrorsDisplay = ({ analysis, onApplyFix }: SyntaxErrorsDisplayProps)
 
   const renderIssueCategory = (
     categoryName: string,
-    issues: string[],
+    issues: SyntaxError[],
     icon: React.ReactNode,
     colorClass: string
   ) => {
@@ -109,7 +112,7 @@ const SyntaxErrorsDisplay = ({ analysis, onApplyFix }: SyntaxErrorsDisplayProps)
         
         <CollapsibleContent className="space-y-2 p-4">
           {issues.map((issue, index) => {
-            const { lineNumber, message, severity } = parseErrorString(issue);
+            const { line: lineNumber, message, severity, column } = issue;
             return (
               <div 
                 key={index}
@@ -128,7 +131,10 @@ const SyntaxErrorsDisplay = ({ analysis, onApplyFix }: SyntaxErrorsDisplayProps)
                         {severity.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-foreground mb-2">
+                    <p 
+                      className="text-sm font-medium text-foreground mb-2 cursor-pointer hover:underline"
+                      onClick={() => onErrorClick && lineNumber && onErrorClick({ line: lineNumber, column: undefined })} // Assuming column is not directly available from parseErrorString
+                    >
                       {message}
                     </p>
                     
@@ -139,16 +145,14 @@ const SyntaxErrorsDisplay = ({ analysis, onApplyFix }: SyntaxErrorsDisplayProps)
                       <div className="flex items-center gap-2 mt-2">
                         <Lightbulb className="h-3 w-3 text-amber-500" />
                         <span className="text-xs text-muted-foreground">
-                          {message.includes('Missing semicolon') && 'Quick fix: Add semicolon'}
-                          {message.includes('Unclosed') && 'Quick fix: Add closing bracket'}
-                          {message.includes('Use ===') && 'Quick fix: Replace == with ==='}
+                          {issue.quickFix}
                         </span>
                         {onApplyFix && lineNumber && (
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="ml-auto h-6 text-xs"
-                            onClick={() => onApplyFix(lineNumber, message)}
+                            onClick={() => onApplyFix(lineNumber, issue.quickFix || '')}
                           >
                             <Zap className="h-3 w-3 mr-1" />
                             Fix
@@ -170,6 +174,12 @@ const SyntaxErrorsDisplay = ({ analysis, onApplyFix }: SyntaxErrorsDisplayProps)
   const errorCount = categorizedIssues.errors.length;
   const warningCount = categorizedIssues.warnings.length;
   const suggestionCount = categorizedIssues.suggestions.length;
+
+  const handleIssueClick = (issue: SyntaxError) => {
+    if (onErrorClick) {
+      onErrorClick({ line: issue.line, column: issue.column });
+    }
+  };
 
   if (totalIssues === 0) {
     return (
