@@ -26,93 +26,78 @@ function getSyntaxAnalysisPrompt(code, language) {
 - Unclosed template literals and strings
 - Function calls missing parentheses
 - Assignment in conditional expressions
-- Unreachable code after return statements`,
+- Unreachable code after return statements
+- Misplaced or duplicate import/export statements
+- Potential security issues such as use of eval or insecure regex patterns
+- Performance pitfalls like excessive DOM access or deep object cloning`,
     
     typescript: `
 - All JavaScript issues plus:
 - Type annotations and interface compliance
 - Missing return type declarations
 - Incorrect generic usage
-- Access modifier usage (public/private/protected)
-- Import statement syntax`,
+- Access modifier misuse (public/private/protected)
+- Import statement syntax and path resolution
+- Strict null checks, any-type leaks, and implicit any
+- Enum misuse and const enum pitfalls
+- Unsafe type assertions and non-exhaustive switch cases`,
     
     python: `
 - Indentation errors (critical in Python)
 - Missing colons after control structures
 - Invalid variable names starting with numbers
 - Incorrect function/class definitions
-- Import statement issues
-- Mixed tabs and spaces`,
+- Import statement issues (circular or unused imports)
+- Mixed tabs and spaces
+- Misuse of mutable default arguments
+- Unhandled exceptions and bare except clauses
+- Performance concerns such as inefficient list comprehensions or global variable usage`,
     
     java: `
 - Missing semicolons (required in Java)
 - Class naming conventions (PascalCase)
 - Missing public static void main method
-- Access modifier usage
-- Import statement syntax
-- Bracket matching for methods and classes`,
+- Access modifier misuse
+- Import statement syntax and unused imports
+- Bracket matching for methods and classes
+- Null-pointer dereference risks
+- Incorrect equals/hashCode implementations
+- Inefficient string concatenation in loops`,
     
     css: `
 - Missing closing braces
 - Invalid property syntax
 - Missing semicolons after property values
-- Incorrect selector syntax`,
+- Incorrect selector specificity or syntax
+- Redundant or conflicting properties
+- Performance issues with deeply nested selectors`,
     
     html: `
 - Unclosed HTML tags
 - Invalid attribute syntax
 - Missing DOCTYPE declaration
-- Incorrect nesting of elements`
+- Incorrect nesting of elements
+- Accessibility violations (missing alt, aria- labels)
+- Duplicate IDs in the DOM`
   };
 
-  return `You are an expert code analyzer with IntelliSense-like capabilities. Analyze the following ${language} code for syntax errors, warnings, and suggestions.
+  return `You are a **compiler-grade static analysis engine** for ${language}. Parse, type-check, and inspect the code for **syntax**, **semantic**, **type**, **security**, **performance**, and **style** issues.
 
-Please provide a comprehensive analysis in the following JSON format:
+Output **only** a JSON object in the schema below (no markdown):
 {
-  "errors": [
-    {
-      "line": number,
-      "column": number, 
-      "message": "description of error",
-      "severity": "error",
-      "type": "syntax",
-      "code": "ERROR_CODE",
-      "quickFix": "suggested fix"
-    }
-  ],
-  "warnings": [
-    {
-      "line": number,
-      "column": number,
-      "message": "description of warning", 
-      "severity": "warning",
-      "type": "syntax",
-      "code": "WARNING_CODE",
-      "quickFix": "suggested fix"
-    }
-  ],
-  "suggestions": [
-    {
-      "line": number,
-      "column": number,
-      "message": "style or best practice suggestion",
-      "severity": "info", 
-      "type": "style",
-      "code": "SUGGESTION_CODE",
-      "quickFix": "suggested improvement"
-    }
-  ]
+  "errors": [ { "line": number, "column": number, "message": string, "severity": "error", "type": "syntax|semantic|type|security|performance", "code": string, "quickFix": string } ],
+  "warnings": [ { "line": number, "column": number, "message": string, "severity": "warning", "type": "syntax|semantic|type|security|performance|style", "code": string, "quickFix": string } ],
+  "suggestions": [ { "line": number, "column": number, "message": string, "severity": "info", "type": "style|performance", "code": string, "quickFix": string } ],
+  "securityIssues": [ { "line": number, "column": number, "message": string, "severity": "error|warning", "type": "security", "code": string, "quickFix": string } ],
+  "performanceIssues": [ { "line": number, "column": number, "message": string, "severity": "warning|info", "type": "performance", "code": string, "quickFix": string } ]
 }
 
-Focus on detecting:
-1. **Syntax Errors**: Missing semicolons, unclosed brackets/braces, invalid variable names, unclosed strings
-2. **Semantic Issues**: Undefined variables, unreachable code, assignment in conditions
-3. **Style Issues**: Code formatting, best practices, performance optimizations
+Be exhaustive: list every detected problem.
 
-For ${language}, pay special attention to:
-${languageInstructions[language] || 'General syntax and style issues'}
+Pay special attention to ${language}-specific concerns:
+${languageInstructions[language] || 'General syntax, semantic, security, and performance best practices'}
 
-Code to analyze:
+Analyse this code:
 \`\`\`${language}
 ${code}
 \`\`\`

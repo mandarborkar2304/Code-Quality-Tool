@@ -97,6 +97,15 @@ export interface TestCase {
   actualOutput?: string;
   executionDetails?: string;
   category?: string; // AI-generated test category (normal, edge, error, boundary, performance, security)
+  
+  // Enhanced execution result fields for structured exception handling
+  exceptionType?: string | null; // Type of exception thrown (if any)
+  exceptionMessage?: string | null; // Exception message (if any)
+  expectedExceptionType?: string | null; // Expected exception type for negative testing
+  expectedExceptionMessage?: string | null; // Expected exception message for negative testing
+  actualExceptionType?: string | null; // Actual exception type thrown during execution
+  actualExceptionMessage?: string | null; // Actual exception message thrown during execution
+  
   // Enhanced user-friendly properties
   priority?: 'high' | 'medium' | 'low'; // Test priority
   difficulty?: 'easy' | 'medium' | 'hard'; // Implementation difficulty

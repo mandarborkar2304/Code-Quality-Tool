@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -52,6 +51,9 @@
     --code-green: 142 76% 36%;
     --code-blue: 221 83% 53%;
     --code-purple: 262 83% 58%;
+    
+    /* Layout variables */
+    --header-height: 80px;
   }
 
   .dark {
@@ -100,7 +102,127 @@
     --code-green: 142 76% 36%;
     --code-blue: 221 83% 53%;
     --code-purple: 262 83% 58%;
+    
+    /* Layout variables */
+    --header-height: 80px;
   }
+}
+
+/* Panel layout and sizing */
+@layer components {
+  /* Ensure main container takes full height */
+  .min-h-screen {
+    min-height: 100vh;
+    height: 100vh;
+  }
+  
+  /* Main content area */
+  main.flex.flex-col.flex-1 {
+    height: 100%;
+    min-height: 0;
+  }
+  
+  /* Panel container */
+  .flex.flex-1.gap-4 {
+    height: 100%;
+    min-height: 0;
+  }
+  
+  /* Individual panels */
+  .flex-1.bg-white.dark\\:bg-gray-800 {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Panel content */
+  .flex.flex-col.h-full.min-h-0 {
+    height: 100%;
+    min-height: 0;
+  }
+  
+  /* Tabs container */
+  .flex.flex-col.h-full.min-h-0 {
+    height: 100%;
+    min-height: 0;
+  }
+  
+  /* Tabs content */
+  .flex.flex-col.flex-1.min-h-0.data-\\[state\\=inactive\\]\\:hidden.overflow-hidden {
+    height: 100%;
+    min-height: 0;
+    flex: 1;
+  }
+  
+  /* Test cases tab content */
+  .flex.flex-col.flex-1.min-h-0.data-\\[state\\=inactive\\]\\:hidden {
+    height: 100%;
+    min-height: 0;
+    flex: 1;
+  }
+  
+  /* Ensure consistent panel heights */
+  .flex-1 {
+    flex: 1 1 0%;
+    min-height: 0;
+  }
+  
+  /* Panel borders and shadows */
+  .border-2.border-orange-400,
+  .dark .border-2.border-orange-500 {
+    border-width: 2px !important;
+    border-style: solid !important;
+    box-sizing: border-box !important;
+    outline: none !important;
+  }
+  
+  .border-2.border-orange-400 {
+    border-color: rgb(251 146 60) !important;
+  }
+  
+  .dark .border-2.border-orange-500 {
+    border-color: rgb(249 115 22) !important;
+  }
+}
+
+/* Monaco Editor specific styling to prevent spacing issues */
+.monaco-editor {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.monaco-editor .overflow-guard {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+/* Ensure Monaco editor is fully interactive */
+.monaco-editor,
+.monaco-editor * {
+  pointer-events: auto !important;
+}
+
+/* Remove default Monaco editor focus outline */
+.monaco-editor.focused,
+.monaco-editor:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+/* Ensure Monaco editor container takes full height */
+.monaco-editor-container {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+/* Remove any default margins from Monaco editor sections */
+.monaco-editor > * {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
 }
 
 @layer base {
@@ -209,250 +331,60 @@
   /* Custom scrollbar for analysis panels */
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.5);
-    border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 155, 155, 0.7);
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-  
-  .dark .custom-scrollbar {
-    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
-  }
-  
-  .dark .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-  }
-  
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
+    scrollbar-color: hsl(var(--muted)) transparent;
   }
 
-  /* Enhanced scrollbar for tabs */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(155, 155, 155, 0.4) transparent;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar {
+  .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
-    height: 6px;
   }
-  
-  .scrollbar-thin::-webkit-scrollbar-track {
+
+  .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.4);
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
     border-radius: 3px;
   }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 155, 155, 0.6);
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground));
   }
 
-  /* Smooth scrolling for containers */
-  .smooth-scroll {
-    scroll-behavior: smooth;
-  }
-  
-  /* Analysis panel scrolling */
+  /* Analysis panel scroll styling */
   .analysis-panel-scroll {
-    overflow-y: auto;
-    overflow-x: hidden;
-    max-height: calc(100vh - 12rem);
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
   }
-  
+
   .analysis-panel-scroll::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .analysis-panel-scroll::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 3px;
+    background: transparent;
   }
-  
+
   .analysis-panel-scroll::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.4);
+    background-color: hsl(var(--muted));
     border-radius: 3px;
   }
-  
+
   .analysis-panel-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 155, 155, 0.6);
-  }
-  
-  .dark .analysis-panel-scroll::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  .dark .analysis-panel-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-  }
-  
-  .dark .analysis-panel-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
+    background-color: hsl(var(--muted-foreground));
   }
 
-  /* Scrollbar with opacity transitions */
-  .scrollbar-fade {
-    --scrollbar-opacity: 0.3;
-    transition: all 0.3s ease;
-  }
-  
-  .scrollbar-fade::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, var(--scrollbar-opacity, 0.3));
-    transition: background-color 0.3s ease;
-  }
-  
-  .scrollbar-fade:hover::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.7);
-  }
-  
-  .dark .scrollbar-fade::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, var(--scrollbar-opacity, 0.3));
-  }
-  
-  .dark .scrollbar-fade:hover::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.5);
-  }
-
-  /* Enhanced scrolling physics */
-  .smooth-scroll-enhanced {
-    scroll-behavior: smooth;
-    scroll-padding-top: 2rem;
-    scroll-padding-bottom: 2rem;
-  }
-
-  /* For webkit browsers - enhanced scrolling */
-  @media screen and (-webkit-min-device-pixel-ratio: 0) {
-    .smooth-scroll-enhanced {
-      -webkit-overflow-scrolling: touch;
-    }
-  }
-
-  /* Scrollbar styling for code blocks in analysis */
-  .analysis-code-block {
-    max-height: 400px;
-    overflow-y: auto;
-    border-radius: 6px;
-  }
-  
-  .analysis-code-block::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-  
-  .analysis-code-block::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 2px;
-  }
-  
-  .analysis-code-block::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.3);
-    border-radius: 2px;
-  }
-  
-  .analysis-code-block::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 155, 155, 0.5);
-  }
-  
-  .dark .analysis-code-block::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  .dark .analysis-code-block::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-  }
-  
-  .dark .analysis-code-block::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4);
-  }
-
-  /* Horizontal scrolling for long content */
-  .horizontal-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-  }
-  
-  .horizontal-scroll::-webkit-scrollbar {
-    height: 6px;
-  }
-  
-  .horizontal-scroll::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 3px;
-  }
-  
-  .horizontal-scroll::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.4);
-    border-radius: 3px;
-  }
-  
-  .horizontal-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 155, 155, 0.6);
-  }
-
-  .dark .code-editor-container::-webkit-scrollbar-thumb:active {
-    background: rgba(255, 255, 255, 0.7);
-  }
-
-  /* Enhanced code editor specific styling */
+  /* Enhanced code editor styling */
   .code-editor-enhanced {
-    /* Smooth scrolling */
-    scroll-behavior: smooth;
-    
-    /* Better text rendering */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    
-    /* Improve selection behavior */
-    user-select: text;
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    
-    /* Better cursor */
-    cursor: text;
-    
-    /* Word spacing for better readability */
-    word-spacing: normal;
-    letter-spacing: 0.05ch;
-    
-    /* Better tab handling */
+    font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.6;
     tab-size: 2;
     -moz-tab-size: 2;
     -o-tab-size: 2;
   }
 
   .code-editor-enhanced:focus {
-    outline: 2px solid rgba(124, 58, 237, 0.5);
-    outline-offset: -2px;
+  outline: none;
   }
 
   /* Better horizontal scrolling for long lines */
@@ -534,7 +466,6 @@
   
   [data-panel-handle]:hover {
     @apply bg-primary/30;
-    width: 1px !important;
   }
   
   [data-panel-handle][data-panel-handle-active] {
@@ -549,6 +480,174 @@
   [data-panel-handle]:hover div,
   [data-panel-handle][data-panel-handle-active] div {
     @apply opacity-100;
+  }
+  
+  /* Monaco Editor specific styling to prevent spacing issues */
+  .monaco-editor {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .monaco-editor .overflow-guard {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Ensure Monaco editor container takes full height */
+  .monaco-editor-container {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  
+  /* Remove any default margins from Monaco editor sections */
+  .monaco-editor > * {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Ensure Monaco editor's internal editor area has no extra spacing */
+  .monaco-editor .monaco-editor-background {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Ensure Monaco editor's scrollable element has no extra spacing */
+  .monaco-editor .monaco-scrollable-element {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Ensure Monaco editor's content area has no extra spacing */
+  .monaco-editor .monaco-editor-background .monaco-editor-background {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Ensure Monaco editor's iframe content has no spacing */
+  .monaco-editor iframe {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  
+  /* Ensure Monaco editor's canvas elements have no spacing */
+  .monaco-editor canvas {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Ensure Monaco editor's textarea elements have no spacing */
+  .monaco-editor textarea {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  
+  /* Container border styling to ensure proper outline */
+  .border-2.border-orange-400 {
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: rgb(251 146 60) !important;
+  }
+  
+  .dark .border-2.border-orange-500 {
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: rgb(249 115 22) !important;
+  }
+  
+  /* Ensure no gaps in container borders */
+  .border-2.border-orange-400,
+  .dark .border-2.border-orange-500 {
+    box-sizing: border-box !important;
+    outline: none !important;
+  }
+  
+  /* Monaco editor container height fixes */
+  .monaco-editor-container,
+  .monaco-editor-container > div {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+  
+  /* Ensure Monaco editor's root element has proper height */
+  .monaco-editor[data-uri] {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  
+  /* Fix for Monaco editor's internal height calculations */
+  .monaco-editor .monaco-editor-background,
+  .monaco-editor .monaco-editor-background .monaco-editor-background {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+  
+  /* Ensure Monaco editor's viewport has no extra height */
+  .monaco-editor .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Remove any height constraints from Monaco editor's internal elements */
+  .monaco-editor * {
+    max-height: none !important;
+  }
+  
+  /* Ensure Monaco editor's scrollable elements don't have height constraints */
+  .monaco-editor .monaco-scrollable-element,
+  .monaco-editor .monaco-scrollable-element * {
+    max-height: none !important;
+    height: auto !important;
+  }
+  
+  /* Override any Monaco editor default height styles */
+  .monaco-editor .monaco-editor-background,
+  .monaco-editor .monaco-editor-background * {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+  
+  /* Additional height fixes for Monaco editor */
+  .monaco-editor .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Ensure Monaco editor's internal elements respect container height */
+  .monaco-editor .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Force Monaco editor to use available height */
+  .monaco-editor[data-uri] .monaco-editor-background .monaco-editor-background .monaco-editor-background {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+  
+  /* Ensure no height constraints in Monaco editor's DOM tree */
+  .monaco-editor .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background .monaco-editor-background {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
   
   /* Code editor syntax highlighting */

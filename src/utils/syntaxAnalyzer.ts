@@ -6,6 +6,9 @@ import { getGroqResponse, getGroqSyntaxAnalysis } from './GroqClient';
 export interface SyntaxError {
   line: number;
   column: number;
+  startColumn?: number; // Optional, for more precise error highlighting
+  endLineNumber?: number; // Optional, for multi-line errors
+  endColumn?: number; // Optional, for more precise error highlighting
   message: string;
   severity: 'error' | 'warning' | 'info';
   type: 'syntax' | 'semantic' | 'style';

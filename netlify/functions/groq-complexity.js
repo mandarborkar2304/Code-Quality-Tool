@@ -170,19 +170,20 @@ function performStaticAnalysis(code, language) {
     const matches = code.match(pattern);
     if (matches) totalLoops += matches.length;
   });
-  
-  // Estimate nested loops
+
+  // Estimate nested loops (improved: only decrease depth for closing braces at line start)
   let nestedLoops = 0;
   let currentDepth = 0;
   let maxDepth = 0;
-  
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (loopPatterns.some(pattern => pattern.test(trimmed))) {
       currentDepth++;
       maxDepth = Math.max(maxDepth, currentDepth);
     }
-    if (trimmed.includes('}') && currentDepth > 0) {
+    // Only decrease depth for closing braces at the start of a line
+    if (/^\}/.test(trimmed) && currentDepth > 0) {
       currentDepth--;
     }
   }
@@ -223,6 +224,23 @@ function performStaticAnalysis(code, language) {
   };
 }
 
+function formatActualOutput(output) {
+  if (
+    output &&
+    typeof output === "object" &&
+    output.exceptionType &&
+    output.exceptionMessage
+  ) {
+    return `Exception: ${output.exceptionType}\nMessage: ${output.exceptionMessage}`;
+  }
+  if (output && typeof output === "object") {
+    // Instead of dumping raw JSON, show key-value pairs in a readable way
+    return Object.entries(output)
+      .map(([key, value]) => `${key}: ${String(value)}`)
+      .join("\n");
+  }
+  return String(output);
+}
 function extractFunctionNames(code, language) {
   const names = [];
   

@@ -3,7 +3,9 @@ import { CodeAnalysis, CodeQualityRating, CodeViolations, TestCase } from "@/typ
 import { AICodeAnalysisResult } from "@/utils/GroqClient";
 import { getCodeMetrics } from "@/utils/codeMetrics";
 import { analyzeTimeComplexity, analyzeSpaceComplexity, detectCodeSmells } from "@/utils/complexityAnalysis";
-import { generateStaticTestCases } from "@/utils/codeAnalysis";
+import { fetchWithRetry } from "@/utils/apiUtils";
+import { createCacheKey } from "@/utils/apiCache";
+
 
 // Transform AICodeAnalysisResult to CodeAnalysis format
 function transformToCodeAnalysis(aiResult: AICodeAnalysisResult, originalCode: string, language: string): CodeAnalysis {
@@ -14,7 +16,8 @@ function transformToCodeAnalysis(aiResult: AICodeAnalysisResult, originalCode: s
     spaceComplexity: analyzeSpaceComplexity(originalCode, language)
   };
   const codeSmells = detectCodeSmells(originalCode, language);
-  const testCases = generateStaticTestCases(originalCode, language);
+  // Test cases generation disabled
+  const testCases: TestCase[] = [];
 
   // Transform violations
   const violations: CodeViolations = {
@@ -93,19 +96,34 @@ function transformToCodeAnalysis(aiResult: AICodeAnalysisResult, originalCode: s
   };
 }
 
+/**
+ * Fetch comprehensive code analysis with caching, retry, and fallback
+ * @param code Code to analyze
+ * @param language Programming language
+ * @returns Code analysis result
+ */
 export const fetchComprehensiveAnalysis = async (code: string, language: string): Promise<CodeAnalysis | null> => {
   try {
-    const res = await fetch("/.netlify/functions/groq-comprehensive-analysis", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, language }),
+    // Create a cache key for this request
+    const cacheKey = createCacheKey('comprehensive-analysis', { 
+      language, 
+      // Use a hash or substring of the code to avoid huge cache keys
+      codeHash: code.substring(0, 100)
     });
-
-    if (!res.ok) {
-      throw new Error(`Analysis failed with status: ${res.status}`);
-    }
-
-    const data = await res.json();
+    
+    // Make the API request with retry and caching
+    const data = await fetchWithRetry<any>(
+      "/.netlify/functions/groq-comprehensive-analysis",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, language }),
+      },
+      cacheKey,
+      2, // Number of retries
+      1500 // Initial retry delay
+    );
+    
     console.log('Comprehensive analysis response:', data);
     
     const aiResult = data.analysis;

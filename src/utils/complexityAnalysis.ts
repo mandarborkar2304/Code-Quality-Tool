@@ -1,4 +1,3 @@
-
 import { ComplexityAnalysis, ComplexityGrade, CodeSmell, CodeSmellsAnalysis } from '@/types/complexityTypes';
 
 // Helper function for comprehensive loop analysis
@@ -19,13 +18,13 @@ function analyzeLoopComplexity(code: string, language: string): {
   if (hasMergeSort(code, language)) {
     result.complexity = 'O(n log n)';
     result.factors.push('Merge sort or divide-and-conquer pattern detected');
-    result.confidence = 'medium';
+    result.confidence = 'medium' as const;
   }
   
   if (hasMatrixOperations(code, language)) {
     result.complexity = 'O(n³)';
     result.factors.push('Matrix multiplication or 3D operations detected');
-    result.confidence = 'medium';
+    result.confidence = 'medium' as const;
   }
   
   return result;
@@ -141,7 +140,7 @@ export const analyzeTimeComplexity = (code: string, language: string): Complexit
     confidence = 'medium';
   } else if (recursionDepth.isRecursive) {
     if (maxComplexity === 'O(1)') {
-      maxComplexity = 'O(n)';
+      maxComplexity = 'O(n)' as ComplexityGrade;
     }
     factors.push('Recursive calls detected');
   }
@@ -155,7 +154,7 @@ export const analyzeTimeComplexity = (code: string, language: string): Complexit
   }
   
   // Check for logarithmic patterns
-  if (hasBinarySearch(code) || hasDivideConquer(code)) {
+  if (hasBinarySearch(code, language) || hasDivideConquer(code, language)) {
     if (maxComplexity === 'O(1)') {
       maxComplexity = 'O(log n)';
       factors.push('Binary search or divide-and-conquer pattern detected');
@@ -195,7 +194,7 @@ export const analyzeSpaceComplexity = (code: string, language: string): Complexi
       maxComplexity = 'O(2^n)';
       factors.push('Exponential recursive calls (high stack usage)');
     } else if (maxComplexity === 'O(1)') {
-      maxComplexity = 'O(n)';
+      maxComplexity = 'O(n)' as ComplexityGrade;
       factors.push('Recursive calls (linear stack usage)');
     }
   }
@@ -203,7 +202,7 @@ export const analyzeSpaceComplexity = (code: string, language: string): Complexi
   // Check for memoization
   if (hasMemoization(code, language)) {
     if (maxComplexity === 'O(1)') {
-      maxComplexity = 'O(n)';
+      maxComplexity = 'O(n)' as ComplexityGrade;
     }
     factors.push('Memoization detected (additional space for caching)');
   }
@@ -320,9 +319,13 @@ const hasSortingOperations = (code: string, language: string): boolean => {
 
 
 
-const hasDivideConquer = (code: string): boolean => {
-  return /divide.*conquer|conquer.*divide/i.test(code) ||
-         code.includes('mid') && code.includes('/') && code.includes('2');
+const hasDivideConquer = (code: string, language: string): boolean => {
+  const patterns = [
+    /divide.*conquer|conquer.*divide/i,
+    /mid.*\/.*2/i
+  ];
+
+  return patterns.some(pattern => pattern.test(code));
 };
 
 const analyzeDataStructureUsage = (code: string, language: string) => {
@@ -470,17 +473,22 @@ const detectLongMethods = (code: string, language: string): CodeSmell[] => {
 const detectMagicNumbers = (code: string, language: string): CodeSmell[] => {
   const smells: CodeSmell[] = [];
   const lines = code.split('\n');
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
+
+    // Skip structurally irrelevant lines
+    if (/^\s*(else|}|{|case\s+[^:]*:|default:)/.test(line)) {
+      continue;
+    }
+
     // Skip constants and common acceptable numbers
     if (line.includes('const') || line.includes('final') || line.includes('static')) {
       continue;
     }
-    
+
     const magicNumbers = line.match(/\b(?!0|1|2|10|100|1000)\d{2,}\b/g);
-    
+
     if (magicNumbers) {
       for (const number of magicNumbers) {
         smells.push({
@@ -494,7 +502,7 @@ const detectMagicNumbers = (code: string, language: string): CodeSmell[] => {
       }
     }
   }
-  
+
   return smells;
 };
 

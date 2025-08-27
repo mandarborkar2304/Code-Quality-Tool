@@ -3,7 +3,7 @@
 
 ## 🏗️ System Architecture
 
-The Code Alchemist AI Forge follows a modular, layered architecture designed for maintainability, extensibility, and clear separation of concerns.
+The Code Quality Tool follows a modular, layered architecture designed for maintainability, extensibility, and clear separation of concerns.
 
 ### High-Level Architecture Diagram
 
@@ -11,48 +11,52 @@ The Code Alchemist AI Forge follows a modular, layered architecture designed for
 graph TB
     subgraph "Frontend Layer"
         A[React UI Components]
-        B[Code Editor]
+        B[Monaco Code Editor]
         C[Analysis Display]
         D[Language Selector]
+        E[Test Generation]
+    end
+    
+    subgraph "State Management"
+        F[EditorContext]
+        G[ThemeContext]
+        H[Custom Hooks]
+    end
+    
+    subgraph "API Integration"
+        I[API Cache]
+        J[Request Queue]
+        K[Error Handling]
+        L[Retry Logic]
     end
     
     subgraph "Analysis Engine"
-        E[Code Metrics Calculator]
-        F[Reliability Analyzer]
-        G[Maintainability Analyzer]
-        H[Complexity Analyzer]
+        M[Code Metrics Calculator]
+        N[Reliability Analyzer]
+        O[Maintainability Analyzer]
+        P[Complexity Analyzer]
+        Q[Security Scanner]
     end
     
-    subgraph "Quality System"
-        I[SonarQube Reliability]
-        J[Technical Debt Assessment]
-        K[Pattern Detection]
-        L[Scoring Utilities]
+    subgraph "External Services"
+        R[Syntax API]
+        S[Analysis API]
+        T[Test Generation API]
     end
     
-    subgraph "Data Layer"
-        M[Language Definitions]
-        N[Threshold Configurations]
-        O[Pattern Libraries]
-    end
-    
-    A --> E
-    B --> E
-    E --> F
-    E --> G
-    E --> H
+    A --> F
+    B --> F
     F --> I
-    G --> J
-    F --> K
-    G --> K
-    H --> K
-    I --> L
-    J --> L
-    K --> L
-    L --> C
-    M --> E
-    N --> L
-    O --> K
+    I --> R
+    I --> S
+    I --> T
+    R --> M
+    S --> N
+    S --> O
+    S --> P
+    S --> Q
+    F --> C
+    F --> E
 ```
 
 ## 📁 Folder Structure
@@ -61,30 +65,36 @@ graph TB
 src/
 ├── components/              # React UI Components
 │   ├── ui/                 # Shadcn UI Components
-│   ├── CodeEditor.tsx      # Main code input interface
+│   ├── MonacoCodeEditor.tsx # Monaco editor integration
+│   ├── SimpleCodeEditor.tsx # Higher-level editor wrapper
 │   ├── AnalysisPanel.tsx   # Results display
-│   ├── CodeQualityMeter.tsx # Visual quality indicators
+│   ├── CodeAnalysisDisplay.tsx # Analysis visualization
+│   ├── ResponsiveLayout.tsx # Responsive design component
+│   ├── KeyboardShortcutsHelp.tsx # Keyboard shortcuts help
+│   ├── LazyAnalysisPanel.tsx # Lazy-loaded analysis panel
 │   └── ...                 # Other UI components
+├── context/                # React Context Providers
+│   └── EditorContext.tsx  # Editor state management
 ├── utils/                  # Core Business Logic
-│   ├── quality/           # Quality Analysis Modules
-│   │   ├── index.ts       # Main exports and coordination
-│   │   ├── types.ts       # TypeScript type definitions
-│   │   ├── scoreThresholds.ts # Grading thresholds and constants
-│   │   ├── reliabilityRating.ts # Reliability analysis
-│   │   ├── maintainabilityRating.ts # Maintainability analysis
-│   │   ├── cyclomaticComplexityRating.ts # Complexity analysis
-│   │   ├── sonarQubeReliability.ts # SonarQube methodology
-│   │   ├── reliabilityHelpers.ts # Utility functions
-│   │   └── scoringUtils.ts # Common scoring utilities
+│   ├── apiCache.ts        # API caching system
+│   ├── apiUtils.ts        # API utilities (queue, retry, debounce)
+│   ├── errorHandling.ts   # Error handling utilities
+│   ├── languageDetection.ts # Language detection
 │   ├── codeMetrics.ts     # Core metrics calculation
 │   ├── codeAnalysis.ts    # Analysis orchestration
-│   └── codeQualityRatings.ts # Legacy compatibility layer
+│   ├── securityScanner.ts # Security analysis
+│   └── syntaxAnalyzer.ts  # Syntax checking
+├── hooks/                  # React Custom Hooks
+│   ├── use-media-query.ts # Responsive design hook
+│   └── use-toast.ts       # Toast notification hook
 ├── data/                  # Static Data
 │   └── languages.ts       # Supported language definitions
 ├── types/                 # Type Definitions
 │   └── index.ts          # Global TypeScript types
-├── hooks/                 # React Custom Hooks
 ├── pages/                 # Page Components
+│   ├── Editor.tsx        # Main editor page
+│   ├── EditorWithContext.tsx # Context-based editor
+│   └── api/              # API route handlers
 └── lib/                  # Utility Libraries
 ```
 
@@ -95,46 +105,58 @@ src/
 ```mermaid
 sequenceDiagram
     participant UI as User Interface
-    participant CA as Code Analysis
-    participant CM as Code Metrics
-    participant RA as Reliability Analysis
-    participant MA as Maintainability Analysis
-    participant CC as Complexity Analysis
-    participant SQ as SonarQube System
+    participant EC as EditorContext
+    participant API as API Layer
+    participant Cache as API Cache
+    participant Queue as Request Queue
+    participant EH as Error Handler
+    participant EA as External API
     
-    UI->>CA: analyzeCode(code, language)
-    CA->>CM: getCodeMetrics(code, language)
-    CM-->>CA: metrics data
+    UI->>EC: handleComprehensiveAnalysis()
+    EC->>API: fetchComprehensiveAnalysis(code, language)
+    API->>Cache: check(cacheKey)
     
-    CA->>RA: calculateReliability(code, language)
-    RA->>SQ: calculateReliabilityGrade(issues)
-    SQ-->>RA: grade and analysis
-    RA-->>CA: reliability results
+    alt Cache Hit
+        Cache-->>API: cachedResult
+    else Cache Miss
+        API->>Queue: add(request)
+        Queue->>EA: fetch(url, options)
+        EA-->>Queue: response
+        Queue-->>API: result
+        API->>Cache: set(cacheKey, result)
+    end
     
-    CA->>MA: getMaintainabilityRating(score)
-    MA-->>CA: maintainability results
+    API-->>EC: analysisResult
     
-    CA->>CC: getCyclomaticComplexityRating(score)
-    CC-->>CA: complexity results
-    
-    CA-->>UI: complete analysis report
+    alt Success
+        EC-->>UI: update UI with analysis
+    else Error
+        API->>EH: handleError(error)
+        EH-->>EC: errorWithFallback
+        EC-->>UI: show error toast
+    end
 ```
 
 ### Data Flow Patterns
 
 #### 1. Input Processing
 ```
-User Code → Language Detection → Syntax Validation → Metric Extraction
+User Code → Language Auto-Detection → Syntax Validation → API Request Preparation
 ```
 
-#### 2. Analysis Pipeline
+#### 2. API Request Flow
 ```
-Raw Metrics → Pattern Detection → Rule Application → Score Calculation → Grade Assignment
+Request → Cache Check → Queue Management → Rate Limit Handling → Retry Logic → Response Processing
 ```
 
-#### 3. Result Aggregation
+#### 3. Analysis Pipeline
 ```
-Individual Scores → Weighted Combination → Final Grade → Report Generation
+API Response → Error Handling → State Update → UI Rendering → User Feedback
+```
+
+#### 4. Test Generation Flow
+```
+Code Analysis → Test Case Generation → Test Execution → Result Visualization
 ```
 
 ## 🧩 Module Relationships
@@ -143,173 +165,354 @@ Individual Scores → Weighted Combination → Final Grade → Report Generation
 
 ```mermaid
 graph LR
-    A[codeAnalysis.ts] --> B[codeMetrics.ts]
-    A --> C[quality/index.ts]
+    A[EditorContext.tsx] --> B[apiUtils.ts]
+    A --> C[errorHandling.ts]
+    A --> D[languageDetection.ts]
     
-    C --> D[reliabilityRating.ts]
-    C --> E[maintainabilityRating.ts]
-    C --> F[cyclomaticComplexityRating.ts]
+    B --> E[apiCache.ts]
+    B --> F[fetchWithRetry]
+    B --> G[debounce]
     
-    D --> G[sonarQubeReliability.ts]
-    D --> H[reliabilityHelpers.ts]
-    E --> I[scoreThresholds.ts]
-    F --> I
-    G --> I
+    C --> H[tryCatch]
+    C --> I[createApiError]
+    C --> J[createAnalysisError]
+    C --> K[createSyntaxError]
     
-    B --> J[scoringUtils.ts]
-    D --> J
-    E --> J
-    F --> J
+    L[Editor.tsx] --> A
+    L --> M[SimpleCodeEditor.tsx]
+    M --> N[MonacoCodeEditor.tsx]
     
-    K[types.ts] --> A
-    K --> C
-    K --> D
-    K --> E
-    K --> F
+    O[ResponsiveLayout.tsx] --> P[use-media-query.ts]
+    
+    Q[LazyAnalysisPanel.tsx] --> R[AnalysisPanel.tsx]
+    
+    S[types.ts] --> A
+    S --> B
+    S --> C
+    S --> L
 ```
 
 ### Interface Contracts
 
-#### Core Analysis Interface
+#### Editor Context Interface
 ```typescript
-interface AnalysisResult {
-  reliability: ScoreData;
-  maintainability: ScoreData;
-  cyclomaticComplexity: ScoreData;
-  metrics: MetricsResult;
-  summary: AnalysisSummary;
+interface EditorContextType {
+  // Code state
+  code: string;
+  setCode: (code: string) => void;
+  
+  // Language state
+  selectedLanguage: ProgrammingLanguage;
+  setSelectedLanguage: (language: ProgrammingLanguage) => void;
+  
+  // Analysis state
+  analysis: CodeAnalysis | null;
+  isAnalyzing: boolean;
+  handleComprehensiveAnalysis: () => Promise<void>;
+  
+  // Syntax state
+  syntaxErrors: SyntaxError[];
+  checkCodeSyntax: () => Promise<void>;
+  
+  // UI state
+  handleReset: () => void;
 }
 ```
 
-#### Scoring Interface
+#### API Cache Interface
 ```typescript
-interface ScoreData {
-  score: ScoreGrade; // 'A' | 'B' | 'C' | 'D'
-  description: string;
-  reason: string;
-  issues?: string[] | ReliabilityIssue[];
-  improvements?: string[];
-  warningFlag?: boolean;
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+interface ApiCache {
+  get<T>(key: string): T | null;
+  set<T>(key: string, data: T, ttl?: number): void;
+  has(key: string): boolean;
+  delete(key: string): void;
+  clear(): void;
+}
+```
+
+#### Error Handling Interface
+```typescript
+interface ErrorOptions {
+  retry?: () => Promise<any>;
+  language?: string;
+  code?: string;
+  context?: Record<string, any>;
+}
+
+interface ApiError extends Error {
+  type: 'api' | 'syntax' | 'analysis' | 'validation' | 'network';
+  retry?: () => Promise<any>;
+  context?: Record<string, any>;
 }
 ```
 
 ## 🔧 Design Patterns
 
-### 1. Strategy Pattern
-Used for different analysis algorithms:
+### 1. Context Provider Pattern
+Centralized state management with React Context:
 ```typescript
-// Quality analysis strategies
-export function getRatingFromScore(
-  score: number, 
-  category: 'reliability' | 'cyclomaticComplexity' | 'maintainability'
-): ScoreData {
-  switch (category) {
-    case 'reliability': return getReliabilityRating(score);
-    case 'cyclomaticComplexity': return getCyclomaticComplexityRating(score);
-    case 'maintainability': return getMaintainabilityRating(score);
+export const EditorProvider: React.FC<EditorProviderProps> = ({ children }) => {
+  // State
+  const [code, setCode] = useState<string>('');
+  const [selectedLanguage, setSelectedLanguage] = useState<ProgrammingLanguage>(programmingLanguages[0]);
+  const [analysis, setAnalysis] = useState<CodeAnalysis | null>(null);
+  
+  // Context value
+  const value: EditorContextType = {
+    code,
+    setCode,
+    selectedLanguage,
+    setSelectedLanguage,
+    analysis,
+    isAnalyzing,
+    handleComprehensiveAnalysis,
+    syntaxErrors,
+    checkCodeSyntax,
+    handleReset
+  };
+  
+  return (
+    <EditorContext.Provider value={value}>
+      {children}
+    </EditorContext.Provider>
+  );
+};
+```
+
+### 2. Queue Pattern
+Managing API requests to prevent rate limiting:
+```typescript
+class RequestQueue {
+  private queue: Array<() => Promise<unknown>> = [];
+  private isProcessing = false;
+  private concurrentLimit = 2;
+  private activeRequests = 0;
+  
+  async add<T>(requestFn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const executeRequest = async () => {
+        try {
+          this.activeRequests++;
+          const result = await requestFn();
+          resolve(result);
+          return result;
+        } catch (error) {
+          reject(error);
+          throw error;
+        } finally {
+          this.activeRequests--;
+          this.processNext();
+        }
+      };
+      
+      this.queue.push(executeRequest);
+      
+      if (!this.isProcessing) {
+        this.processNext();
+      }
+    });
+  }
+  
+  // Process next request in queue
+  private async processNext(): Promise<void> {
+    // Implementation details...
   }
 }
 ```
 
-### 2. Factory Pattern
-Language-specific analysis configuration:
+### 3. Cache Pattern
+Efficient caching of API responses:
 ```typescript
-// Language-specific comment patterns
-function getCommentSyntax(language: string): string {
-  const syntaxMap = {
-    javascript: '//',
-    python: '#',
-    java: '//',
-    // ...
-  };
-  return syntaxMap[language.toLowerCase()] || '//';
-}
+export const apiCache = {
+  get<T>(key: string): T | null {
+    const item = localStorage.getItem(`cache_${key}`);
+    if (!item) return null;
+    
+    const { data, timestamp, ttl } = JSON.parse(item) as CacheItem<T>;
+    const now = Date.now();
+    
+    if (now - timestamp > ttl) {
+      this.delete(key);
+      return null;
+    }
+    
+    return data;
+  },
+  
+  set<T>(key: string, data: T, ttl: number = DEFAULT_TTL): void {
+    const cacheItem: CacheItem<T> = {
+      data,
+      timestamp: Date.now(),
+      ttl
+    };
+    
+    localStorage.setItem(`cache_${key}`, JSON.stringify(cacheItem));
+  },
+  
+  // Additional methods...
+};
 ```
 
-### 3. Observer Pattern
-UI components react to analysis state changes through React hooks and state management.
-
-### 4. Template Method Pattern
-Common analysis workflow with language-specific implementations:
+### 4. Error Handling Pattern
+Consistent error handling with typed errors:
 ```typescript
-export const calculateCyclomaticComplexity = (code: string, language: string): number => {
-  // Template method with language-specific rules
-  const baseComplexity = 1;
-  const languageRules = getLanguageRules(language);
-  return analyzeWithRules(code, languageRules, baseComplexity);
-};
+export async function tryCatch<T, F = null>(
+  fn: () => Promise<T>,
+  fallback: F,
+  options: ErrorOptions = {}
+): Promise<T | F> {
+  try {
+    return await fn();
+  } catch (error) {
+    console.error('Operation failed:', error);
+    
+    // Handle the error with toast notification
+    handleError(error, options);
+    
+    // Return fallback value
+    return fallback;
+  }
+}
 ```
 
 ## 🏢 Architectural Principles
 
 ### 1. Separation of Concerns
 - **UI Layer**: React components handle presentation only
-- **Business Logic**: Utils handle analysis and computation
-- **Data Layer**: Separate configuration and type definitions
+- **State Management**: Context providers manage application state
+- **API Integration**: Utilities handle API communication
+- **Business Logic**: Utility functions handle analysis and computation
 
 ### 2. Single Responsibility
 Each module has a focused responsibility:
-- `codeMetrics.ts`: Raw metric calculation
-- `reliabilityRating.ts`: Reliability-specific analysis
-- `sonarQubeReliability.ts`: SonarQube methodology implementation
+- `EditorContext.tsx`: Manages editor state and operations
+- `apiUtils.ts`: Handles API request management
+- `errorHandling.ts`: Centralizes error handling
+- `MonacoCodeEditor.tsx`: Handles code editing functionality
 
 ### 3. Open/Closed Principle
 - Easy to add new languages without modifying existing code
-- New analysis rules can be added through configuration
-- Extensible grading systems
+- New analysis features can be added through API integration
+- Extensible component system with composition
 
 ### 4. Dependency Inversion
-- High-level modules don't depend on low-level modules
-- Both depend on abstractions (TypeScript interfaces)
-- Allows for easy testing and mocking
+- High-level modules depend on abstractions, not implementations
+- Context providers abstract state management
+- Interface-based design for better testability
+- Custom hooks abstract complex logic
 
 ## 🔄 Configuration Architecture
 
-### Threshold Management
+### API Configuration
 ```typescript
-// Centralized configuration
-export const SONARQUBE_GRADE_THRESHOLDS = {
-  A: { blocker: 0, critical: 0, major: 0, minor: 5 },
-  B: { blocker: 0, critical: 0, major: 2, minor: 10 },
-  C: { blocker: 0, critical: 1, major: 5, minor: 20 },
-  D: { blocker: 1, critical: 2, major: 10, minor: 50 }
-} as const;
+// API request configuration
+export const API_CONFIG = {
+  baseUrl: '/api',
+  endpoints: {
+    syntaxCheck: '/syntaxCheckerAPI',
+    analysis: '/groqComprehensiveAnalysisAPI',
+    testGeneration: '/groqTestAPI'
+  },
+  defaultHeaders: {
+    'Content-Type': 'application/json'
+  },
+  timeout: 30000,
+  retries: 3,
+  cacheTime: 5 * 60 * 1000 // 5 minutes
+};
 ```
 
-### Pattern Libraries
+### Language Configuration
 ```typescript
-// Extensible pattern definitions
-export const CRITICAL_PATTERNS = [
-  'null pointer', 'divide by zero', 'buffer overflow',
-  // ... additional patterns
-] as const;
+// Language configuration
+export const programmingLanguages: ProgrammingLanguage[] = [
+  {
+    id: 'javascript',
+    name: 'JavaScript',
+    monacoId: 'javascript',
+    extension: 'js',
+    patterns: {
+      comments: ['//', '/*'],
+      functions: ['function', '=>'],
+      classes: ['class'],
+      loops: ['for', 'while', 'do'],
+      conditionals: ['if', 'switch', 'ternary']
+    }
+  },
+  // Additional languages...
+];
 ```
 
-## 🎯 Scalability Considerations
+### Error Handling Configuration
+```typescript
+// Error handling configuration
+export const ERROR_CONFIG = {
+  defaultMessages: {
+    api: 'An error occurred while communicating with the server',
+    syntax: 'Syntax check failed',
+    analysis: 'Analysis failed',
+    validation: 'Invalid input',
+    network: 'Network error'
+  },
+  retryDelays: [1000, 2000, 4000], // Exponential backoff
+  maxRetries: 3
+};
+```
 
-### Horizontal Scaling
-- Stateless analysis functions enable easy parallelization
-- Each analysis runs independently
-- No shared mutable state between analyses
+## 🎯 Performance Optimizations
 
-### Vertical Scaling
-- Memory-efficient string processing
-- Lazy evaluation where possible
-- Streaming analysis for large files
+### Code Splitting
+- **Lazy Loading**: Heavy components loaded only when needed
+- **Dynamic Imports**: Reduces initial bundle size
+- **Suspense Boundaries**: Provides loading states during component loading
 
-### Performance Optimizations
-- Compiled regular expressions cached for reuse
-- Early termination for definitive results
-- Incremental analysis for iterative improvements
+```typescript
+// Lazy loading example
+const LazyAnalysisPanel = lazy(() => import("@/components/LazyAnalysisPanel"));
+
+// Usage with Suspense
+<Suspense fallback={<AnalysisLoading />}>
+  <LazyAnalysisPanel analysis={analysis} language={selectedLanguage.id} />
+</Suspense>
+```
+
+### Render Optimization
+- **Memoization**: Prevents unnecessary re-renders
+- **useCallback/useMemo**: Prevents recreation of functions and values
+- **Optimized Dependencies**: Careful management of effect dependencies
+
+```typescript
+// Memoized callback example
+const handleComprehensiveAnalysis = useCallback(async () => {
+  // Implementation details...
+}, [code, selectedLanguage.id, toast]);
+```
+
+### Network Optimization
+- **Caching**: Prevents redundant API calls
+- **Request Queue**: Controls request frequency
+- **Debouncing**: Prevents excessive requests during rapid user input
 
 ## 🔒 Error Handling Architecture
 
-### Graceful Degradation
+### Typed Errors
 ```typescript
-// Defensive programming patterns
-if (!isFinite(score) || score < 0) {
-  console.warn('Invalid score provided:', score);
-  return getDefaultGrade();
+// Creating typed errors
+export function createApiError(
+  message: string,
+  options: ErrorOptions = {}
+): ApiError {
+  const error = new Error(message) as ApiError;
+  error.type = 'api';
+  error.retry = options.retry;
+  error.context = options.context;
+  return error;
 }
 ```
 
@@ -318,9 +521,61 @@ if (!isFinite(score) || score < 0) {
 - Analysis failures don't crash the entire application
 - Meaningful error messages for users
 
-### Validation Layers
-- Input validation at UI level
-- Business logic validation in analysis functions
-- Type safety through TypeScript
+### Graceful Degradation
+```typescript
+// Try-catch with fallback pattern
+export async function tryCatch<T, F = null>(
+  fn: () => Promise<T>,
+  fallback: F,
+  options: ErrorOptions = {}
+): Promise<T | F> {
+  try {
+    return await fn();
+  } catch (error) {
+    handleError(error, options);
+    return fallback;
+  }
+}
+```
+
+### Toast Notifications
+- User-friendly error messages
+- Action buttons for retry functionality
+- Consistent error presentation
+
+## 🌐 Responsive Design Architecture
+
+### Media Query Hook
+```typescript
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const mediaQuery = window.matchMedia(query);
+    setMatches(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setMatches(event.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [query]);
+
+  return mounted ? matches : false;
+}
+```
+
+### Responsive Layout Component
+- Adapts layout based on screen size
+- Provides different views for mobile and desktop
+- Maintains consistent user experience across devices
+
+### Mobile-First Approach
+- Designed for mobile first, then enhanced for desktop
+- Adaptive controls for different screen sizes
+- Touch-friendly interface elements
 
 This architecture ensures maintainability, extensibility, and robustness while providing clear separation of concerns and enabling future enhancements.

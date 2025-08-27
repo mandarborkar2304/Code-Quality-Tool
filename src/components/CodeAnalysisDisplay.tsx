@@ -6,7 +6,6 @@ import {
   Brain,
   Code2,
   Lightbulb,
-  TestTube,
   TrendingUp,
 } from "lucide-react";
 
@@ -16,21 +15,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OverviewSection from "./OverviewSection";
 import ComplexityDisplay from "./ComplexityDisplay";
 import CodeSmellsDisplay from "./CodeSmellsDisplay";
-import TestCaseDisplay from "./TestCaseDisplay";
+
 import EnhancedAIInsights from "./EnhancedAIInsights";
 import SyntaxErrorsDisplay from "./SyntaxErrorsDisplay";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface CodeAnalysisDisplayProps {
   analysis: CodeAnalysis | null;
   language: string;
   onApplyCorrection: (code: string) => void;
+  syntaxErrors?: { line: number; message: string; column?: number }[];
+  onSyntaxErrorClick: (lineNumber: number, column?: number) => void;
+  isAnalyzing: boolean;
+  onReanalyze: () => Promise<void>;
 }
+
 
 const CodeAnalysisDisplay = ({
   analysis,
   language,
   onApplyCorrection,
+  syntaxErrors = [],
+  onSyntaxErrorClick,
+  isAnalyzing,
+  onReanalyze,
 }: CodeAnalysisDisplayProps) => {
   const [activeTab, setActiveTab] = useState("overview");
   
@@ -61,22 +70,12 @@ const CodeAnalysisDisplay = ({
     }
   };
 
-  const handleTestUpdate = (index: number, updated: Partial<any>) => {
-    if (!analysis.testCases) return;
-    analysis.testCases[index] = {
-      ...analysis.testCases[index],
-      ...updated,
-    };
-  };
 
-  const handleTestReplace = (newTests: any[]) => {
-    analysis.testCases = newTests;
-  };
 
   return (
     <div className="h-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" className="text-xs">
             <BarChart3 className="h-3 w-3 mr-1" />
             Overview
@@ -84,9 +83,9 @@ const CodeAnalysisDisplay = ({
           <TabsTrigger value="syntax" className="text-xs">
             <Code2 className="h-3 w-3 mr-1" />
             Syntax
-            {analysis.syntaxErrors && analysis.syntaxErrors.length > 0 && (
+            {syntaxErrors && syntaxErrors.length > 0 && (
               <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-xs">
-                {analysis.syntaxErrors.length}
+                {syntaxErrors.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -102,10 +101,6 @@ const CodeAnalysisDisplay = ({
             <AlertCircle className="h-3 w-3 mr-1" />
             Code Smells
           </TabsTrigger>
-          <TabsTrigger value="tests" className="text-xs">
-            <TestTube className="h-3 w-3 mr-1" />
-            Tests
-          </TabsTrigger>
           <TabsTrigger value="ai-insights" className="text-xs">
             <Brain className="h-3 w-3 mr-1" />
             AI Insights
@@ -119,11 +114,17 @@ const CodeAnalysisDisplay = ({
 
           <TabsContent value="syntax" className="mt-0">
             <SyntaxErrorsDisplay 
-              analysis={analysis}
+              analysis={{
+                ...analysis,
+                syntaxErrors: syntaxErrors.map(e => `Line ${e.line}: ${e.message}`)
+              }}
               onApplyFix={(lineNumber, fix) => {
                 // Handle syntax error fixes - could integrate with code editor
                 console.log(`Apply fix at line ${lineNumber}: ${fix}`);
               }}
+              onErrorClick={(error) => onSyntaxErrorClick(error.line, error.column)}
+              onReanalyze={onReanalyze}
+              isAnalyzing={isAnalyzing}
             />
           </TabsContent>
 
@@ -228,15 +229,7 @@ const CodeAnalysisDisplay = ({
             )}
           </TabsContent>
 
-          <TabsContent value="tests" className="mt-0">
-            <TestCaseDisplay
-              testCases={analysis.testCases}
-              code={analysis.originalCode}
-              language={language}
-              onUpdate={handleTestUpdate}
-              onReplaceAll={handleTestReplace}
-            />
-          </TabsContent>
+
 
           <TabsContent value="ai-insights" className="mt-0">
             <EnhancedAIInsights

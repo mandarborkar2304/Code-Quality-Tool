@@ -1,4 +1,3 @@
-
 import { ScoreGrade } from '@/types';
 
 export interface DebtIssue {
@@ -456,8 +455,13 @@ export class TechnicalDebtCalculator {
 
   private analyzeMagicNumbers() {
     const lines = this.code.split('\n');
-    
+
     lines.forEach((line, index) => {
+      // Skip control-flow and structural lines
+      if (/^\s*(else|}|\{|case\s+[^:]*:|default:)/.test(line)) {
+        return;
+      }
+
       // Find numeric literals (excluding common acceptable values)
       const magicNumbers = line.match(/\b(?<![\w.])\d{2,}\b(?![\w.])/g);
       if (magicNumbers) {

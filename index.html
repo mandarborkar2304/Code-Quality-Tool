@@ -22,71 +22,11 @@
   </head>
 
   <body>
-    <!-- Vanta.js backdrop -->
-    <div id="vanta-backdrop"></div>
+    <!-- Vanta.js backdrop (removed, now handled by React) -->
     <div id="root"></div>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Vanta.js initialization -->
-    <script>
-      let vantaEffect;
-      
-      function initVanta() {
-        if (typeof VANTA !== 'undefined' && typeof THREE !== 'undefined') {
-          const isDarkMode = document.documentElement.classList.contains('dark') || 
-                            window.matchMedia('(prefers-color-scheme: dark)').matches;
-          
-          vantaEffect = VANTA.DOTS({
-            el: "#vanta-backdrop",
-            mouseControls: true,
-            touchControls: true,
-            gyroControls: false,
-            minHeight: 200.00,
-            minWidth: 200.00,
-            scale: 1.00,
-            scaleMobile: 0.8,
-            size: isDarkMode ? 4.2 : 3.9,
-            spacing: isDarkMode ? 26.00 : 24.00,
-            showLines: false,
-            color: isDarkMode ? 0x3b82f6 : 0x6366f1,
-            backgroundColor: isDarkMode ? 0x0f0f23 : 0x1e1e2e,
-            THREE: THREE
-          });
-        }
-      }
-      
-      // Initialize when DOM is ready
-      document.addEventListener('DOMContentLoaded', initVanta);
-      
-      // Handle theme changes
-      if (typeof MutationObserver !== 'undefined') {
-        const observer = new MutationObserver(function(mutations) {
-          mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-              if (vantaEffect) {
-                vantaEffect.destroy();
-              }
-              setTimeout(initVanta, 100);
-            }
-          });
-        });
-        
-        document.addEventListener('DOMContentLoaded', function() {
-          observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['class']
-          });
-        });
-      }
-      
-      // Cleanup on page unload
-      window.addEventListener('beforeunload', function() {
-        if (vantaEffect) {
-          vantaEffect.destroy();
-        }
-      });
-    </script>
+    <!-- Vanta.js initialization removed: now handled by React (VantaBackground) -->
   </body>
 </html>

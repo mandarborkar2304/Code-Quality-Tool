@@ -7,9 +7,14 @@ interface AnalysisPanelProps {
   analysis: CodeAnalysis | null;
   language: string;
   onApplyCorrection: (code: string) => void;
+  syntaxErrors?: { line: number; message: string; column?: number }[]; // Optional syntax errors prop
+  onSyntaxErrorClick: (lineNumber: number, column?: number) => void;
+  isAnalyzing: boolean;
+  onReanalyze: () => Promise<void>;
 }
 
-const AnalysisPanel = ({ analysis, language, onApplyCorrection }: AnalysisPanelProps) => {
+
+const AnalysisPanel = ({ analysis, language, onApplyCorrection, syntaxErrors, onSyntaxErrorClick, isAnalyzing, onReanalyze }: AnalysisPanelProps) => {
   return (
     <Card className="h-full flex flex-col border-orange-200 bg-white dark:bg-gray-800 dark:border-gray-700">
       <CardHeader className="pb-3 border-b border-orange-100 flex-shrink-0">
@@ -20,7 +25,11 @@ const AnalysisPanel = ({ analysis, language, onApplyCorrection }: AnalysisPanelP
           <CodeAnalysisDisplay 
             analysis={analysis} 
             language={language}
-            onApplyCorrection={onApplyCorrection} 
+            onApplyCorrection={onApplyCorrection}
+            syntaxErrors={syntaxErrors}
+            onSyntaxErrorClick={onSyntaxErrorClick}
+            isAnalyzing={isAnalyzing}
+            onReanalyze={onReanalyze}
           />
         </div>
       </CardContent>

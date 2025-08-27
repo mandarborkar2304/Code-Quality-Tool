@@ -4,7 +4,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FileCode, X, Plus, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { checkSyntax, SyntaxError, SyntaxAnalysisResult } from "@/pages/api/syntaxCheckerAPI";
+import { SyntaxError, SyntaxAnalysisResult } from "@/utils/syntaxAnalyzer";
+import { realtimeSyntaxAnalyzer } from "@/utils/realtimeSyntaxAnalyzer";
 import {
   Tooltip,
   TooltipContent,
@@ -54,7 +55,7 @@ const TabsCodeEditor: React.FC<TabsCodeEditorProps> = ({
       setCheckingFiles(newCheckingFiles);
 
       try {
-        const result = await checkSyntax(file.content, file.language.id);
+        const result = await realtimeSyntaxAnalyzer.analyze(file.content, file.language);
         
         setSyntaxErrors(prev => ({
           ...prev,
